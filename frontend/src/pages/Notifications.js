@@ -237,20 +237,20 @@ function Notifications() {
                 whileHover={{ scale: 1.05 }}
                 style={{ display: "inline-block", marginBottom: "16px" }}
               >
-                <FaBell style={{ fontSize: "3rem", color: "#fff" }} />
+                <FaBell style={{ fontSize: "3rem", color: "#667eea" }} />
               </motion.div>
               <Typography 
                 variant="h2" 
                 gutterBottom 
                 sx={{ 
                   fontWeight: 700,
-                  color: "#fff",
+                  color: "#1a202c",
                   mb: 1
                 }}
               >
                 Notifications
               </Typography>
-              <Typography variant="h6" sx={{ color: "rgba(255, 255, 255, 0.8)" }}>
+              <Typography variant="h6" sx={{ color: "#4a5568" }}>
                 Stay updated with your productivity
               </Typography>
             </Box>

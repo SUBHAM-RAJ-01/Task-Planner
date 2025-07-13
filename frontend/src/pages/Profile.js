@@ -244,20 +244,20 @@ function Profile() {
                 whileHover={{ scale: 1.05 }}
                 style={{ display: "inline-block", marginBottom: "16px" }}
               >
-                <FaUser style={{ fontSize: "3rem", color: "#fff" }} />
+                <FaUser style={{ fontSize: "3rem", color: "#667eea" }} />
               </motion.div>
               <Typography 
                 variant="h2" 
                 gutterBottom 
                 sx={{ 
                   fontWeight: 700,
-                  color: "#fff",
+                  color: "#1a202c",
                   mb: 1
                 }}
               >
                 Profile
               </Typography>
-              <Typography variant="h6" sx={{ color: "rgba(255, 255, 255, 0.8)" }}>
+              <Typography variant="h6" sx={{ color: "#4a5568" }}>
                 Manage your account and preferences
               </Typography>
             </Box>
