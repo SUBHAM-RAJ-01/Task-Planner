@@ -13,6 +13,7 @@ import {
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { toast } from "react-toastify";
 import { useFirebase } from "./FirebaseAppProvider";
+import { clearUserData } from "../utils/storage";
 
 const AuthContext = createContext();
 
@@ -279,10 +280,14 @@ export const AuthProvider = ({ children }) => {
 
     try {
       await firebaseSignOut(auth);
-      toast.success("Signed out successfully");
+      // Clear user data from localStorage
+      if (user?.uid) {
+        clearUserData(user.uid);
+      }
+      toast.success("Signed out successfully! 👋");
     } catch (error) {
       console.error("Sign-out error:", error);
-      toast.error("Sign-out failed");
+      toast.error("Failed to sign out");
       throw error;
     }
   };

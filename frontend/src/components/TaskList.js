@@ -47,8 +47,9 @@ import {
 import { MdPriorityHigh, MdLowPriority } from "react-icons/md";
 import { useAuth } from "../firebase/useAuth";
 import AIService from "../services/aiService";
+import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 
-const TaskList = () => {
+const TaskList = ({ onTasksChange }) => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState("");
@@ -63,10 +64,32 @@ const TaskList = () => {
   const token = localStorage.getItem("token");
   const api = process.env.REACT_APP_BACKEND_URL;
 
+  // Load tasks from localStorage on component mount
   useEffect(() => {
     if (!token) return;
 
-    // Load sample tasks
+    const savedTasks = loadFromStorage(storageKeys.TASKS, user?.uid, null, 'tasks');
+    if (savedTasks) {
+      setTasks(savedTasks);
+    } else {
+      // Load sample tasks if no saved data
+      loadSampleTasks();
+    }
+  }, [token, user?.uid]);
+
+  // Save tasks to localStorage whenever tasks change
+  useEffect(() => {
+    if (user?.uid && tasks.length > 0) {
+      saveToStorage(storageKeys.TASKS, tasks, user.uid);
+    }
+    
+    // Notify parent component about task changes
+    if (onTasksChange) {
+      onTasksChange(tasks);
+    }
+  }, [tasks, user?.uid, onTasksChange]);
+
+  const loadSampleTasks = () => {
     const sampleTasks = [
       {
         id: 1,
@@ -97,7 +120,7 @@ const TaskList = () => {
       }
     ];
     setTasks(sampleTasks);
-  }, [token]);
+  };
 
   // AI-powered task creation
   const handleAICreateTask = async () => {

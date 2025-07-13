@@ -38,6 +38,7 @@ import {
 import { MdEvent, MdAccessTime, MdLocationOn } from "react-icons/md";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import { useAuth } from "../firebase/useAuth";
+import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import TaskList from "../components/TaskList";
 import AITaskCreator from "../components/AITaskCreator";
 
@@ -52,17 +53,50 @@ function Dashboard() {
     productivity: 0
   });
 
-  // Sample data
+  // Load dashboard data from localStorage on component mount
   useEffect(() => {
-    setStats({
-      totalTasks: 12,
-      completedTasks: 8,
-      pendingTasks: 4,
-      totalEvents: 6,
-      upcomingEvents: 3,
-      productivity: 85
-    });
-  }, []);
+    if (!user?.uid) return;
+
+    // Load saved stats
+    const savedStats = loadFromStorage(storageKeys.DASHBOARD_STATS, user.uid, null, 'stats');
+    if (savedStats) {
+      setStats(savedStats);
+    } else {
+      // Load default stats if no saved data
+      setStats({
+        totalTasks: 12,
+        completedTasks: 8,
+        pendingTasks: 4,
+        totalEvents: 6,
+        upcomingEvents: 3,
+        productivity: 85
+      });
+    }
+  }, [user?.uid]);
+
+  // Save stats to localStorage whenever stats change
+  useEffect(() => {
+    if (user?.uid) {
+      saveToStorage(storageKeys.DASHBOARD_STATS, stats, user.uid);
+    }
+  }, [stats, user?.uid]);
+
+  // Handle task changes and update stats
+  const handleTasksChange = (tasks) => {
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(task => task.completed).length;
+    const pendingTasks = totalTasks - completedTasks;
+    const productivity = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    setStats(prev => ({
+      ...prev,
+      totalTasks,
+      completedTasks,
+      pendingTasks,
+      productivity
+    }));
+  };
+
 
   const productivityData = [
     { day: "Mon", productivity: 85 },
@@ -143,7 +177,7 @@ function Dashboard() {
                   <FaTasks style={{ color: "#667eea" }} />
                   Task Management
                 </Typography>
-                <TaskList />
+                <TaskList onTasksChange={handleTasksChange} />
               </CardContent>
             </Card>
           </motion.div>

@@ -312,199 +312,113 @@ class AIService {
     }
   }
 
-  // Natural language task creation with AI
+  // Create task from natural language with automatic scheduling
   static async createTaskFromNaturalLanguage(naturalLanguageInput, userPreferences = {}) {
     try {
-      console.log('Starting AI task creation with input:', naturalLanguageInput);
+      console.log('Creating task from natural language:', naturalLanguageInput);
       
-      // First, parse the task with AI
-      console.log('Parsing task with AI...');
+      // Parse task with AI
       const parsedTask = await this.parseTask(naturalLanguageInput);
-      console.log('AI parsing result:', parsedTask);
       
-      // Create smart task with scheduling
-      console.log('Creating smart task...');
-      const smartTask = await this.createSmartTask(naturalLanguageInput, userPreferences);
-      console.log('Smart task result:', smartTask);
+      console.log('Parsed task:', parsedTask);
       
-      // Create the actual task
-      const taskData = {
-        title: smartTask.title,
-        description: naturalLanguageInput,
-        category: smartTask.category,
-        priority: smartTask.priority,
-        estimatedTime: smartTask.estimatedTime,
-        scheduledTime: smartTask.optimalSchedule.scheduledTime,
-        deadline: smartTask.extractedDate ? new Date(smartTask.extractedDate) : null,
+      // Create the actual task object
+      const task = {
+        id: Date.now() + Math.random(),
+        title: parsedTask.title,
+        description: parsedTask.description || naturalLanguageInput,
+        category: parsedTask.category || 'work task',
+        priority: parsedTask.priority || 'medium',
+        estimatedTime: parsedTask.estimatedTime || 60,
+        scheduledTime: parsedTask.scheduledTime ? new Date(parsedTask.scheduledTime) : null,
+        dueDate: parsedTask.dueDate ? new Date(parsedTask.dueDate) : null,
+        completed: false,
+        createdAt: new Date().toISOString(),
         aiGenerated: true,
-        aiConfidence: smartTask.confidence
+        aiConfidence: parsedTask.confidence || 0.8,
+        // Add extracted date/time information
+        extractedDate: parsedTask.extractedDate,
+        extractedTime: parsedTask.extractedTime,
+        reminderTime: parsedTask.reminderTime ? new Date(parsedTask.reminderTime) : null
       };
       
-      console.log('Creating task in backend with data:', taskData);
-      
-      // Create task in backend
-      const response = await fetch(`${API_BASE_URL}/api/tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(taskData)
-      });
-
-      console.log('Backend response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Backend error response:', errorData);
-        throw new Error(`Task creation failed: ${errorData.error || response.statusText}`);
+      // Schedule notification if we have a scheduled time
+      let notificationScheduled = false;
+      if (task.scheduledTime && task.reminderTime) {
+        try {
+          await this.scheduleNotification(task.id, {
+            notificationTime: task.reminderTime,
+            message: `Reminder: Your task "${task.title}" is scheduled to start in 30 minutes`,
+            type: 'reminder'
+          });
+          notificationScheduled = true;
+        } catch (error) {
+          console.warn('Failed to schedule notification:', error);
+        }
       }
-
-      const createdTask = await response.json();
-      console.log('Task created successfully:', createdTask);
       
-      // Schedule notification
-      if (smartTask.notificationSchedule) {
-        console.log('Scheduling notification...');
-        await this.scheduleNotification(createdTask.id, smartTask.notificationSchedule);
-        console.log('Notification scheduled successfully');
-      }
+      // Create AI analysis object
+      const aiAnalysis = {
+        category: parsedTask.category,
+        priority: parsedTask.priority,
+        estimatedTime: parsedTask.estimatedTime,
+        confidence: parsedTask.confidence,
+        scheduledTime: parsedTask.scheduledTime,
+        extractedDate: parsedTask.extractedDate,
+        extractedTime: parsedTask.extractedTime,
+        notificationScheduled: notificationScheduled
+      };
       
       return {
-        task: createdTask,
-        aiAnalysis: smartTask,
-        notificationScheduled: !!smartTask.notificationSchedule
+        task,
+        aiAnalysis,
+        notificationScheduled
       };
-    } catch (error) {
-      console.error('Natural language task creation error:', error);
       
-      // Fallback: Create task without AI if AI endpoints fail
-      try {
-        console.log('Trying fallback task creation...');
-        const fallbackTask = this.createFallbackTask(naturalLanguageInput, userPreferences);
-        
-        const response = await fetch(`${API_BASE_URL}/api/tasks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(fallbackTask)
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(`Fallback task creation failed: ${errorData.error || response.statusText}`);
-        }
-
-        const createdTask = await response.json();
-        
-        return {
-          task: createdTask,
-          aiAnalysis: fallbackTask.aiAnalysis,
-          notificationScheduled: !!fallbackTask.notificationSchedule
-        };
-      } catch (fallbackError) {
-        console.error('Fallback task creation also failed:', fallbackError);
-        throw error; // Throw original error
-      }
+    } catch (error) {
+      console.error('Error creating task from natural language:', error);
+      
+      // Fallback: create basic task without AI
+      const fallbackTask = this.createFallbackTask(naturalLanguageInput, userPreferences);
+      
+      return {
+        task: fallbackTask,
+        aiAnalysis: {
+          category: 'work task',
+          priority: 'medium',
+          estimatedTime: 60,
+          confidence: 0.5,
+          scheduledTime: null,
+          extractedDate: null,
+          extractedTime: null,
+          notificationScheduled: false
+        },
+        notificationScheduled: false
+      };
     }
   }
 
-  // Fallback task creation when AI endpoints are not available
+  // Create fallback task when AI fails
   static createFallbackTask(naturalLanguageInput, userPreferences = {}) {
-    // Simple local parsing
-    const input = naturalLanguageInput.toLowerCase();
-    
-    // Extract priority
-    let priority = 'medium';
-    if (input.includes('urgent') || input.includes('asap') || input.includes('critical')) {
-      priority = 'high';
-    } else if (input.includes('low') || input.includes('optional')) {
-      priority = 'low';
-    }
-    
-    // Extract category
-    let category = 'work task';
-    if (input.includes('meeting') || input.includes('call')) {
-      category = 'meeting';
-    } else if (input.includes('email') || input.includes('send')) {
-      category = 'communication';
-    } else if (input.includes('review') || input.includes('read')) {
-      category = 'review';
-    }
-    
-    // Extract time estimation
-    let estimatedTime = 60; // Default 1 hour
-    if (input.includes('quick') || input.includes('5 min')) {
-      estimatedTime = 5;
-    } else if (input.includes('30 min')) {
-      estimatedTime = 30;
-    } else if (input.includes('2 hour')) {
-      estimatedTime = 120;
-    }
-    
-    // Extract date/time
-    let scheduledTime = new Date();
-    scheduledTime.setHours(scheduledTime.getHours() + 1); // Default: 1 hour from now
-    
-    if (input.includes('tomorrow')) {
-      scheduledTime.setDate(scheduledTime.getDate() + 1);
-    } else if (input.includes('next week')) {
-      scheduledTime.setDate(scheduledTime.getDate() + 7);
-    }
-    
-    // Extract time of day
-    const timeMatch = input.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
-    if (timeMatch) {
-      let hour = parseInt(timeMatch[1]);
-      const minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
-      const period = timeMatch[3].toLowerCase();
-      
-      if (period === 'pm' && hour !== 12) hour += 12;
-      if (period === 'am' && hour === 12) hour = 0;
-      
-      scheduledTime.setHours(hour, minute, 0, 0);
-    }
-    
-    // Generate notification schedule
-    const notificationTime = new Date(scheduledTime.getTime() - (30 * 60 * 1000));
-    
-    const taskData = {
-      title: naturalLanguageInput.substring(0, 50),
-      description: naturalLanguageInput,
-      category: category,
-      priority: priority,
-      estimatedTime: estimatedTime,
-      scheduledTime: scheduledTime,
-      deadline: null,
-      aiGenerated: false,
-      aiConfidence: 0.5
-    };
-    
-    const aiAnalysis = {
-      title: taskData.title,
-      category: category,
-      priority: priority,
-      estimatedTime: estimatedTime,
-      confidence: 0.5,
-      optimalSchedule: {
-        scheduledTime: scheduledTime,
-        reason: 'Fallback scheduling',
-        confidence: 0.5
-      },
-      notificationSchedule: {
-        notificationTime: notificationTime,
-        advanceMinutes: 30,
-        message: `Your task "${taskData.title}" is scheduled to start in 30 minutes`,
-        type: 'reminder'
-      }
-    };
+    const now = new Date();
+    const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
     
     return {
-      ...taskData,
-      aiAnalysis: aiAnalysis,
-      notificationSchedule: aiAnalysis.notificationSchedule
+      id: Date.now() + Math.random(),
+      title: naturalLanguageInput.substring(0, 50),
+      description: naturalLanguageInput,
+      category: 'work task',
+      priority: 'medium',
+      estimatedTime: 60,
+      scheduledTime: nextHour,
+      dueDate: null,
+      completed: false,
+      createdAt: new Date().toISOString(),
+      aiGenerated: false,
+      aiConfidence: 0.5,
+      extractedDate: null,
+      extractedTime: null,
+      reminderTime: null
     };
   }
 }

@@ -55,14 +55,24 @@ router.post('/parse-task', async (req, res) => {
     if (priorityScore >= 3) priority = 'high';
     else if (priorityScore === 0) priority = 'low';
 
+    // Extract date and time from natural language
+    const extractedDateTime = extractDateTimeFromText(taskDescription);
+    
+    // Generate scheduled time based on extracted date/time
+    const scheduledTime = generateScheduledTime(extractedDateTime, taskDescription);
+
     const parsedTask = {
       title: extractTaskTitle(taskDescription),
+      description: taskDescription,
       category: classificationResponse.data.labels[0],
       priority: priority,
       estimatedTime: timeEstimation,
       confidence: classificationResponse.data.scores[0],
-      extractedDate: extractDateFromText(taskDescription),
-      extractedTime: extractTimeFromText(taskDescription)
+      extractedDate: extractedDateTime.date,
+      extractedTime: extractedDateTime.time,
+      scheduledTime: scheduledTime,
+      dueDate: extractedDateTime.dueDate,
+      reminderTime: generateReminderTime(scheduledTime)
     };
 
     res.json(parsedTask);
@@ -205,36 +215,169 @@ function extractTaskTitle(description) {
   return sentences[0].trim().substring(0, 50);
 }
 
-function extractDateFromText(text) {
-  // Extract dates using regex patterns
+// Enhanced date and time extraction from natural language
+function extractDateTimeFromText(text) {
+  const lowerText = text.toLowerCase();
+  const now = new Date();
+  
+  let extractedDate = null;
+  let extractedTime = null;
+  let dueDate = null;
+  
+  // Extract specific dates
   const datePatterns = [
-    /(\d{1,2}\/\d{1,2}\/\d{4})/g,
-    /(\d{1,2}-\d{1,2}-\d{4})/g,
-    /(today|tomorrow|next week|next month)/gi
+    // Specific dates: "January 15th", "15th January", "Jan 15"
+    /(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?/gi,
+    /(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)/gi,
+    /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})/gi,
+    // Date formats: "15/01/2024", "15-01-2024"
+    /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/g,
+    // Relative dates
+    /(today|tomorrow|next week|next month|this week|this month)/gi
   ];
   
+  // Extract time patterns
+  const timePatterns = [
+    // Specific times: "3pm", "3:30pm", "15:30"
+    /(\d{1,2}):(\d{2})\s*(am|pm)/gi,
+    /(\d{1,2})\s*(am|pm)/gi,
+    /(\d{1,2}):(\d{2})/g,
+    // Time periods
+    /(morning|afternoon|evening|night|noon|midnight)/gi
+  ];
+  
+  // Check for specific dates
   for (const pattern of datePatterns) {
-    const match = text.match(pattern);
-    if (match) return match[0];
+    const match = lowerText.match(pattern);
+    if (match) {
+      extractedDate = parseDateFromMatch(match, now);
+      break;
+    }
+  }
+  
+  // Check for specific times
+  for (const pattern of timePatterns) {
+    const match = lowerText.match(pattern);
+    if (match) {
+      extractedTime = parseTimeFromMatch(match);
+      break;
+    }
+  }
+  
+  // Check for relative dates
+  if (lowerText.includes('today')) {
+    extractedDate = now;
+  } else if (lowerText.includes('tomorrow')) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    extractedDate = tomorrow;
+  } else if (lowerText.includes('next week')) {
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    extractedDate = nextWeek;
+  } else if (lowerText.includes('next month')) {
+    const nextMonth = new Date(now);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    extractedDate = nextMonth;
+  }
+  
+  // Check for due dates
+  if (lowerText.includes('due') || lowerText.includes('deadline')) {
+    dueDate = extractedDate || extractedTime ? new Date(now.getTime() + 24 * 60 * 60 * 1000) : null;
+  }
+  
+  return {
+    date: extractedDate,
+    time: extractedTime,
+    dueDate: dueDate
+  };
+}
+
+function parseDateFromMatch(match, now) {
+  const monthNames = {
+    'january': 0, 'jan': 0, 'february': 1, 'feb': 1, 'march': 2, 'mar': 2,
+    'april': 3, 'apr': 3, 'may': 4, 'june': 5, 'jun': 5, 'july': 6, 'jul': 6,
+    'august': 7, 'aug': 7, 'september': 8, 'sep': 8, 'october': 9, 'oct': 9,
+    'november': 10, 'nov': 10, 'december': 11, 'dec': 11
+  };
+  
+  if (match[0].includes('/') || match[0].includes('-')) {
+    // Format: DD/MM/YYYY or DD-MM-YYYY
+    const parts = match[0].split(/[\/\-]/);
+    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+  } else {
+    // Format: Month Day or Day Month
+    const parts = match[0].split(/\s+/);
+    if (parts.length >= 2) {
+      const month = monthNames[parts[0].toLowerCase()] || monthNames[parts[1].toLowerCase()];
+      const day = parseInt(parts[1]) || parseInt(parts[0]);
+      return new Date(now.getFullYear(), month, day);
+    }
+  }
+  
+  return now;
+}
+
+function parseTimeFromMatch(match) {
+  if (match[0].includes(':')) {
+    // Format: HH:MM AM/PM
+    const time = match[0].toLowerCase();
+    const [timePart, period] = time.split(/\s+/);
+    const [hours, minutes] = timePart.split(':').map(Number);
+    
+    let adjustedHours = hours;
+    if (period === 'pm' && hours !== 12) adjustedHours += 12;
+    if (period === 'am' && hours === 12) adjustedHours = 0;
+    
+    return { hours: adjustedHours, minutes: minutes || 0 };
+  } else if (match[0].includes('am') || match[0].includes('pm')) {
+    // Format: HH AM/PM
+    const time = match[0].toLowerCase();
+    const [hours, period] = time.split(/\s+/);
+    let adjustedHours = parseInt(hours);
+    
+    if (period === 'pm' && adjustedHours !== 12) adjustedHours += 12;
+    if (period === 'am' && adjustedHours === 12) adjustedHours = 0;
+    
+    return { hours: adjustedHours, minutes: 0 };
+  } else if (match[0].includes(':')) {
+    // Format: HH:MM (24-hour)
+    const [hours, minutes] = match[0].split(':').map(Number);
+    return { hours, minutes };
   }
   
   return null;
 }
 
-function extractTimeFromText(text) {
-  // Extract time using regex patterns
-  const timePatterns = [
-    /(\d{1,2}:\d{2}\s*(am|pm))/gi,
-    /(\d{1,2}\s*(am|pm))/gi,
-    /(morning|afternoon|evening|night)/gi
-  ];
+function generateScheduledTime(extractedDateTime, taskDescription) {
+  const now = new Date();
+  let scheduledTime = new Date(now);
   
-  for (const pattern of timePatterns) {
-    const match = text.match(pattern);
-    if (match) return match[0];
+  // If we have a specific date, use it
+  if (extractedDateTime.date) {
+    scheduledTime = new Date(extractedDateTime.date);
   }
   
-  return null;
+  // If we have a specific time, set it
+  if (extractedDateTime.time) {
+    scheduledTime.setHours(extractedDateTime.time.hours, extractedDateTime.time.minutes, 0, 0);
+  } else {
+    // Default to next hour if no time specified
+    scheduledTime.setHours(now.getHours() + 1, 0, 0, 0);
+  }
+  
+  // If the scheduled time is in the past, move to next day
+  if (scheduledTime <= now) {
+    scheduledTime.setDate(scheduledTime.getDate() + 1);
+  }
+  
+  return scheduledTime;
+}
+
+function generateReminderTime(scheduledTime) {
+  // Set reminder 30 minutes before scheduled time
+  const reminderTime = new Date(scheduledTime.getTime() - (30 * 60 * 1000));
+  return reminderTime;
 }
 
 function parseTimeFromText(timeText) {
@@ -248,10 +391,13 @@ function parseTimeFromText(timeText) {
     'days': 1440
   };
   
-  for (const [unit, multiplier] of Object.entries(timePatterns)) {
-    const match = timeText.match(new RegExp(`(\\d+)\\s*${unit}`, 'i'));
-    if (match) {
-      return parseInt(match[1]) * multiplier;
+  const lowerText = timeText.toLowerCase();
+  for (const [pattern, minutes] of Object.entries(timePatterns)) {
+    if (lowerText.includes(pattern)) {
+      const numberMatch = lowerText.match(/(\d+)/);
+      if (numberMatch) {
+        return parseInt(numberMatch[1]) * minutes;
+      }
     }
   }
   

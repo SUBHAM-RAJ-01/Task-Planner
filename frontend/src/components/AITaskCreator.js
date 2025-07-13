@@ -79,6 +79,20 @@ const AITaskCreator = ({ onTaskCreated }) => {
     await handleCreateTask();
   };
 
+  const handleTestAI = async () => {
+    const testInputs = [
+      "Call John tomorrow at 3pm",
+      "Review documents by Friday 2:30pm",
+      "Team meeting next Tuesday morning",
+      "Submit report by January 20th",
+      "Client presentation at 10am today"
+    ];
+    
+    const randomInput = testInputs[Math.floor(Math.random() * testInputs.length)];
+    setTaskInput(randomInput);
+    await handleCreateTask();
+  };
+
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'high': return 'error';
@@ -93,11 +107,16 @@ const AITaskCreator = ({ onTaskCreated }) => {
   };
 
   const quickTasks = [
-    "Review project proposal by tomorrow",
+    "Review project proposal by tomorrow 3pm",
     "Call client at 2pm today",
-    "Prepare presentation for Friday meeting",
+    "Prepare presentation for Friday meeting at 10am",
     "Send follow-up emails this afternoon",
-    "Update documentation by end of week"
+    "Update documentation by end of week",
+    "Team meeting tomorrow morning at 9am",
+    "Submit report by January 15th",
+    "Client call next Tuesday at 2:30pm",
+    "Review quarterly reports by Friday 3pm",
+    "Schedule dentist appointment for next week"
   ];
 
   return (
@@ -138,22 +157,31 @@ const AITaskCreator = ({ onTaskCreated }) => {
             sx={{ mb: 2 }}
           />
           
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
             <Button
               variant="contained"
               onClick={handleCreateTask}
               disabled={loading || !taskInput.trim()}
               startIcon={loading ? <CircularProgress size={20} /> : <FaRobot />}
               sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               }}
             >
-              {loading ? 'Creating Task...' : 'Create Smart Task'}
+              {loading ? "Creating Task..." : "Create Smart Task"}
+            </Button>
+            
+            <Button
+              variant="outlined"
+              onClick={handleTestAI}
+              disabled={loading}
+              startIcon={<FaLightbulb />}
+            >
+              Test AI
             </Button>
             
             <IconButton
               onClick={() => setExpanded(!expanded)}
-              sx={{ color: '#667eea' }}
+              sx={{ color: "#667eea" }}
             >
               {expanded ? <FaCompressAlt /> : <FaExpandAlt />}
             </IconButton>
@@ -208,18 +236,18 @@ const AITaskCreator = ({ onTaskCreated }) => {
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <Card variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FaCalendarAlt style={{ color: '#667eea' }} />
+                  <Typography variant="h6" sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+                    <FaCalendarAlt style={{ color: "#667eea" }} />
                     Task Details
                   </Typography>
                   
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                       <Typography variant="body2">Category:</Typography>
                       <Chip label={aiAnalysis.category} size="small" />
                     </Box>
                     
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                       <Typography variant="body2">Priority:</Typography>
                       <Chip 
                         label={aiAnalysis.priority} 
@@ -228,14 +256,14 @@ const AITaskCreator = ({ onTaskCreated }) => {
                       />
                     </Box>
                     
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                       <Typography variant="body2">Estimated Time:</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {aiAnalysis.estimatedTime} minutes
                       </Typography>
                     </Box>
                     
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                       <Typography variant="body2">AI Confidence:</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {(aiAnalysis.confidence * 100).toFixed(1)}%
@@ -247,70 +275,59 @@ const AITaskCreator = ({ onTaskCreated }) => {
 
               <Grid item xs={12} md={6}>
                 <Card variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FaClock style={{ color: '#667eea' }} />
+                  <Typography variant="h6" sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+                    <FaClock style={{ color: "#667eea" }} />
                     Scheduling
                   </Typography>
                   
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Scheduled Time:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {formatTime(aiAnalysis.optimalSchedule.scheduledTime)}
-                      </Typography>
-                    </Box>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    {aiAnalysis.scheduledTime && (
+                      <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                        <Typography variant="body2">Scheduled:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {formatTime(aiAnalysis.scheduledTime)}
+                        </Typography>
+                      </Box>
+                    )}
                     
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Reason:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {aiAnalysis.optimalSchedule.reason}
-                      </Typography>
-                    </Box>
+                    {aiAnalysis.extractedDate && (
+                      <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                        <Typography variant="body2">Date Found:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {aiAnalysis.extractedDate}
+                        </Typography>
+                      </Box>
+                    )}
                     
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Confidence:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {(aiAnalysis.optimalSchedule.confidence * 100).toFixed(1)}%
-                      </Typography>
+                    {aiAnalysis.extractedTime && (
+                      <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                        <Typography variant="body2">Time Found:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {aiAnalysis.extractedTime}
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <Typography variant="body2">Notification:</Typography>
+                      <Chip 
+                        label={aiAnalysis.notificationScheduled ? "Scheduled" : "Not Set"} 
+                        color={aiAnalysis.notificationScheduled ? "success" : "default"}
+                        size="small"
+                      />
                     </Box>
                   </Box>
                 </Card>
               </Grid>
-
-              {aiAnalysis.notificationSchedule && (
-                <Grid item xs={12}>
-                  <Card variant="outlined" sx={{ p: 2, background: 'rgba(102, 126, 234, 0.05)' }}>
-                    <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <FaBell style={{ color: '#667eea' }} />
-                      Notification Scheduled
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Notification Time:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {formatTime(aiAnalysis.notificationSchedule.notificationTime)}
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Advance Notice:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {aiAnalysis.notificationSchedule.advanceMinutes} minutes
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Message:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {aiAnalysis.notificationSchedule.message}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Card>
-                </Grid>
-              )}
             </Grid>
+
+            {aiAnalysis.notificationScheduled && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="body2">
+                  📅 Task scheduled and reminder set for 30 minutes before start time!
+                </Typography>
+              </Alert>
+            )}
           </motion.div>
         )}
       </CardContent>

@@ -34,6 +34,7 @@ import {
   FaRocket
 } from "react-icons/fa";
 import { MdDashboard, MdSecurity, MdNotifications } from "react-icons/md";
+import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import styles from "./Profile.module.css";
 import { useAuth } from "../firebase/useAuth";
 
@@ -71,15 +72,64 @@ function Profile() {
     sms: false
   });
 
+  // Load profile data from localStorage on component mount
   useEffect(() => {
-    // Load profile data
-    setStats({
-      totalTasks: 45,
-      completedTasks: 38,
-      productivity: 84,
-      streak: 7
-    });
-  }, []);
+    if (!user?.uid) return;
+
+    // Load saved profile data
+    const savedProfile = loadFromStorage(storageKeys.PROFILE, user.uid, null, 'profile');
+    if (savedProfile) {
+      setProfile(savedProfile);
+      setDisplayName(savedProfile.displayName || user?.displayName || user?.email?.split('@')[0] || "User");
+      setBio(savedProfile.bio || 'Productivity enthusiast and goal achiever.');
+    }
+
+    // Load saved notification settings
+    const savedNotificationSettings = loadFromStorage(storageKeys.PROFILE_NOTIFICATIONS, user.uid);
+    if (savedNotificationSettings) {
+      setNotificationSettings(savedNotificationSettings);
+    }
+
+    // Load saved stats
+    const savedStats = loadFromStorage(storageKeys.PROFILE_STATS, user.uid, null, 'stats');
+    if (savedStats) {
+      setStats(savedStats);
+    } else {
+      // Load default stats if no saved data
+      setStats({
+        totalTasks: 45,
+        completedTasks: 38,
+        productivity: 84,
+        streak: 7
+      });
+    }
+  }, [user?.uid]);
+
+  // Save profile data to localStorage whenever profile changes
+  useEffect(() => {
+    if (user?.uid) {
+      const profileData = {
+        ...profile,
+        displayName: displayName,
+        bio: bio
+      };
+      saveToStorage(storageKeys.PROFILE, profileData, user.uid);
+    }
+  }, [profile, displayName, bio, user?.uid]);
+
+  // Save notification settings to localStorage whenever settings change
+  useEffect(() => {
+    if (user?.uid) {
+      saveToStorage(storageKeys.PROFILE_NOTIFICATIONS, notificationSettings, user.uid);
+    }
+  }, [notificationSettings, user?.uid]);
+
+  // Save stats to localStorage whenever stats change
+  useEffect(() => {
+    if (user?.uid) {
+      saveToStorage(storageKeys.PROFILE_STATS, stats, user.uid);
+    }
+  }, [stats, user?.uid]);
 
   const handleSave = async () => {
     setLoading(true);

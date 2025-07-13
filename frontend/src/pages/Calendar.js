@@ -40,6 +40,7 @@ import { IoMdTime } from "react-icons/io";
 import styles from "./Calendar.module.css";
 import EventList from "../components/EventList";
 import { useAuth } from "../firebase/useAuth";
+import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 
 function Calendar() {
   const { user } = useAuth();
@@ -64,10 +65,27 @@ function Calendar() {
     return () => clearInterval(timer);
   }, []);
 
+  // Load events from localStorage on component mount
   useEffect(() => {
     if (!token) return;
     
-    // Load sample events
+    const savedEvents = loadFromStorage(storageKeys.EVENTS, user?.uid, null, 'events');
+    if (savedEvents) {
+      setEvents(savedEvents);
+    } else {
+      // Load sample events if no saved data
+      loadSampleEvents();
+    }
+  }, [token, user?.uid]);
+
+  // Save events to localStorage whenever events change
+  useEffect(() => {
+    if (user?.uid && events.length > 0) {
+      saveToStorage(storageKeys.EVENTS, events, user.uid);
+    }
+  }, [events, user?.uid]);
+
+  const loadSampleEvents = () => {
     const sampleEvents = [
       {
         id: 1,
@@ -98,7 +116,7 @@ function Calendar() {
       }
     ];
     setEvents(sampleEvents);
-  }, [token]);
+  };
 
   const handleAdd = async () => {
     if (!title.trim() || !start.trim()) {

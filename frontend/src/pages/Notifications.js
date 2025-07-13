@@ -34,6 +34,7 @@ import {
 } from "react-icons/fa";
 import { MdNotifications, MdSettings } from "react-icons/md";
 import { requestFcmToken, getStoredFcmToken } from "../firebase/fcm";
+import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import styles from "./Notifications.module.css";
 import { useAuth } from "../firebase/useAuth";
 
@@ -54,46 +55,36 @@ function Notifications() {
   const token = localStorage.getItem("token");
   const api = process.env.REACT_APP_BACKEND_URL;
 
+  // Load notifications and settings from localStorage on component mount
   useEffect(() => {
     if (!token) return;
 
-    // Load sample notifications
-    const sampleNotifications = [
-      {
-        id: 1,
-        title: "Task Completed",
-        message: "Great job! You've completed 'Review project proposal'",
-        type: "success",
-        timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-        read: false
-      },
-      {
-        id: 2,
-        title: "Meeting Reminder",
-        message: "Team meeting starts in 15 minutes",
-        type: "info",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-        read: true
-      },
-      {
-        id: 3,
-        title: "Deadline Approaching",
-        message: "Project deadline is tomorrow. Don't forget to submit!",
-        type: "warning",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-        read: false
-      },
-      {
-        id: 4,
-        title: "New Feature Available",
-        message: "Calendar sync feature is now live!",
-        type: "info",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
-        read: true
-      }
-    ];
-    setNotifications(sampleNotifications);
-  }, [token]);
+    // Load saved notifications
+    const savedNotifications = loadFromStorage(storageKeys.NOTIFICATIONS, user?.uid, null, 'notifications');
+    if (savedNotifications) {
+      setNotifications(savedNotifications);
+    }
+
+    // Load saved settings
+    const savedSettings = loadFromStorage(storageKeys.NOTIFICATION_SETTINGS, user?.uid);
+    if (savedSettings) {
+      setSettings(savedSettings);
+    }
+  }, [token, user?.uid]);
+
+  // Save notifications to localStorage whenever notifications change
+  useEffect(() => {
+    if (user?.uid && notifications.length > 0) {
+      saveToStorage(storageKeys.NOTIFICATIONS, notifications, user.uid);
+    }
+  }, [notifications, user?.uid]);
+
+  // Save settings to localStorage whenever settings change
+  useEffect(() => {
+    if (user?.uid) {
+      saveToStorage(storageKeys.NOTIFICATION_SETTINGS, settings, user.uid);
+    }
+  }, [settings, user?.uid]);
 
   const handleSendNotification = async () => {
     if (!title.trim() || !message.trim()) {

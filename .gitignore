@@ -44,6 +44,7 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
+*.lcov
 
 # nyc test coverage
 .nyc_output
@@ -56,12 +57,6 @@ jspm_packages/
 
 # Optional eslint cache
 .eslintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
 
 # Optional REPL history
 .node_repl_history
@@ -86,7 +81,7 @@ jspm_packages/
 .vuepress/dist
 
 # Serverless directories
-.serverless/
+.serverless
 
 # FuseBox cache
 .fusebox/
@@ -103,13 +98,28 @@ jspm_packages/
 # Firebase
 .firebase/
 firebase-debug.log
-firestore-debug.log
-ui-debug.log
+firebase-debug.*.log
+
+# Service worker
+public/sw.js
+public/workbox-*.js
 
 # Cache directories
 .cache/
-*.cache
+.cache/default-development/
+.cache/default-production/
 
 # Temporary files
 tmp/
-temp/ 
+temp/
+
+# Backup files
+*.bak
+*.backup
+
+# Lock files (keep package-lock.json but ignore others)
+yarn.lock
+pnpm-lock.yaml
+
+# Local development files
+.local/ 
