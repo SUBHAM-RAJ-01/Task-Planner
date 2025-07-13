@@ -1,0 +1,12 @@
+.charts {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.barChart {
+  width: 300px;
+}
+.doughnutChart {
+  width: 200px;
+} 

@@ -1,0 +1,30 @@
+.appBar {
+  background: #1976d2;
+}
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+}
+.links {
+  display: flex;
+  gap: 12px;
+}
+.linkButton {
+  color: #fff;
+  font-weight: 500;
+  text-transform: none;
+  font-size: 1rem;
+  padding: 6px 16px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.linkButton:hover {
+  background: rgba(255,255,255,0.08);
+} 
