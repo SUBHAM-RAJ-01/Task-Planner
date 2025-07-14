@@ -53,10 +53,11 @@ import { useAuth } from "../firebase/useAuth";
 import AIService from "../services/aiService";
 import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import Loader from "./Loader";
+import { useFirestoreTasks } from '../hooks/useFirestoreTasks';
 
 const TaskList = ({ onTasksChange }) => {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState([]);
+  const { tasks, addTask, updateTask, deleteTask } = useFirestoreTasks();
   const [newTask, setNewTask] = useState("");
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("all"); // all, active, completed
@@ -67,142 +68,23 @@ const TaskList = ({ onTasksChange }) => {
   const [aiTask, setAiTask] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState("medium");
 
-  const token = localStorage.getItem("token");
-  const api = process.env.REACT_APP_BACKEND_URL;
+  // Remove all localStorage usage for tasks
 
-  // Load tasks from localStorage on component mount
+  // Notify parent component about task changes
   useEffect(() => {
-    if (!token) return;
-
-    const savedTasks = loadFromStorage(storageKeys.TASKS, user?.uid, null, 'tasks');
-    if (savedTasks) {
-      setTasks(savedTasks);
-    } else {
-      // Load sample tasks if no saved data
-      loadSampleTasks();
-    }
-  }, [token, user?.uid]);
-
-  // Save tasks to localStorage whenever tasks change
-  useEffect(() => {
-    if (user?.uid && tasks.length > 0) {
-      saveToStorage(storageKeys.TASKS, tasks, user.uid);
-    }
-    
-    // Notify parent component about task changes
     if (onTasksChange) {
       onTasksChange(tasks);
     }
-  }, [tasks, user?.uid, onTasksChange]);
-
-  const loadSampleTasks = () => {
-    const sampleTasks = [
-      {
-        id: 1,
-        title: "Complete project proposal",
-        description: "Write and submit the quarterly project proposal",
-        priority: "high",
-        dueDate: "2024-01-20",
-        completed: false,
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 2,
-        title: "Review team performance",
-        description: "Analyze team metrics and prepare review",
-        priority: "medium",
-        dueDate: "2024-01-25",
-        completed: true,
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 3,
-        title: "Update documentation",
-        description: "Update API documentation and user guides",
-        priority: "low",
-        dueDate: "2024-01-30",
-        completed: false,
-        createdAt: new Date().toISOString()
-      }
-    ];
-    setTasks(sampleTasks);
-  };
-
-  // AI-powered task creation
-  const handleAICreateTask = async () => {
-    if (!aiTask.trim()) {
-      toast.error("Please enter a task description");
-      return;
-    }
-
-    setAiLoading(true);
-    try {
-      const smartTask = await AIService.createSmartTask(aiTask);
-      
-      const newTask = {
-        id: Date.now(),
-        title: smartTask.title,
-        description: aiTask,
-        priority: smartTask.priority,
-        category: smartTask.category,
-        estimatedTime: smartTask.estimatedTime,
-        dueDate: smartTask.extractedDate || new Date().toISOString().split('T')[0],
-        completed: false,
-        createdAt: new Date().toISOString(),
-        aiConfidence: smartTask.confidence
-      };
-
-      setTasks(prev => [...prev, newTask]);
-      setAiTask("");
-      setShowAiDialog(false);
-      
-      toast.success(`AI created task: ${smartTask.title} (${smartTask.priority} priority)`);
-    } catch (error) {
-      console.error("AI task creation error:", error);
-      toast.error("Failed to create AI task. Creating basic task instead.");
-      
-      // Fallback to basic task creation
-      const basicTask = {
-        id: Date.now(),
-        title: aiTask.trim(),
-        description: "",
-        priority: "medium",
-        dueDate: new Date().toISOString().split('T')[0],
-        completed: false,
-        createdAt: new Date().toISOString()
-      };
-      
-      setTasks(prev => [...prev, basicTask]);
-      setAiTask("");
-      setShowAiDialog(false);
-    }
-    setAiLoading(false);
-  };
-
-  // Get AI insights
-  const getAIInsights = async () => {
-    setAiLoading(true);
-    try {
-      const insights = await AIService.getInsights(tasks, []);
-      setAiInsights(insights);
-      toast.success("AI insights generated!");
-    } catch (error) {
-      console.error("AI insights error:", error);
-      toast.error("Failed to generate AI insights");
-    }
-    setAiLoading(false);
-  };
+  }, [tasks, onTasksChange]);
 
   const handleAddTask = async () => {
     if (!newTask.trim()) {
       toast.error("Please enter a task title");
       return;
     }
-
     setLoading(true);
     try {
       const task = {
-        id: Date.now(),
         title: newTask.trim(),
         description: "",
         priority: newTaskPriority,
@@ -210,8 +92,7 @@ const TaskList = ({ onTasksChange }) => {
         completed: false,
         createdAt: new Date().toISOString()
       };
-
-      setTasks(prev => [...prev, task]);
+      await addTask(task);
       setNewTask("");
       setNewTaskPriority("medium");
       toast.success("Task added successfully! ✅");
@@ -221,17 +102,11 @@ const TaskList = ({ onTasksChange }) => {
     setLoading(false);
   };
 
-  const handleToggleComplete = async (taskId) => {
+  const handleToggleComplete = async (taskId, currentCompleted) => {
     try {
-      setTasks(prev => prev.map(task =>
-        task.id === taskId
-          ? { ...task, completed: !task.completed }
-          : task
-      ));
-      
-      const task = tasks.find(t => t.id === taskId);
-      const status = task.completed ? "incomplete" : "completed";
-      toast.success(`Task marked as ${status}! ${task.completed ? "🔄" : "✅"}`);
+      await updateTask(taskId, { completed: !currentCompleted });
+      const status = currentCompleted ? "incomplete" : "completed";
+      toast.success(`Task marked as ${status}! ${currentCompleted ? "🔄" : "✅"}`);
     } catch (error) {
       toast.error("Failed to update task");
     }
@@ -239,22 +114,18 @@ const TaskList = ({ onTasksChange }) => {
 
   const handleDeleteTask = async (taskId) => {
     try {
-      setTasks(prev => prev.filter(task => task.id !== taskId));
+      await deleteTask(taskId);
       toast.success("Task deleted successfully");
     } catch (error) {
       toast.error("Failed to delete task");
     }
   };
 
-  const handleEditTask = async (taskId) => {
-    const task = tasks.find(t => t.id === taskId);
-    const newTitle = prompt("Edit task title", task.title);
+  const handleEditTask = async (taskId, oldTitle) => {
+    const newTitle = prompt("Edit task title", oldTitle);
     if (!newTitle || newTitle.trim() === "") return;
-
     try {
-      setTasks(prev => prev.map(t =>
-        t.id === taskId ? { ...t, title: newTitle.trim() } : t
-      ));
+      await updateTask(taskId, { title: newTitle.trim() });
       toast.success("Task updated successfully");
     } catch (error) {
       toast.error("Failed to update task");
@@ -263,9 +134,7 @@ const TaskList = ({ onTasksChange }) => {
 
   const handlePriorityChange = async (taskId, priority) => {
     try {
-      setTasks(prev => prev.map(task =>
-        task.id === taskId ? { ...task, priority } : task
-      ));
+      await updateTask(taskId, { priority });
       toast.success(`Priority updated to ${priority}`);
     } catch (error) {
       toast.error("Failed to update priority");
@@ -340,6 +209,48 @@ const TaskList = ({ onTasksChange }) => {
   if (loading) {
     return <Loader />;
   }
+
+  const handleAICreateTask = async () => {
+    if (!aiTask.trim()) {
+      toast.error("Please enter a task description");
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const smartTask = await AIService.createSmartTask(aiTask);
+      const newTask = {
+        title: smartTask.title,
+        description: aiTask,
+        priority: smartTask.priority,
+        category: smartTask.category,
+        estimatedTime: smartTask.estimatedTime,
+        dueDate: smartTask.extractedDate || new Date().toISOString().split('T')[0],
+        completed: false,
+        createdAt: new Date().toISOString(),
+        aiConfidence: smartTask.confidence
+      };
+      await addTask(newTask);
+      setAiTask("");
+      setShowAiDialog(false);
+      toast.success(`AI created task: ${smartTask.title} (${smartTask.priority} priority)`);
+    } catch (error) {
+      console.error("AI task creation error:", error);
+      toast.error("Failed to create AI task. Creating basic task instead.");
+      // Fallback to basic task creation
+      const basicTask = {
+        title: aiTask.trim(),
+        description: "",
+        priority: "medium",
+        dueDate: new Date().toISOString().split('T')[0],
+        completed: false,
+        createdAt: new Date().toISOString()
+      };
+      await addTask(basicTask);
+      setAiTask("");
+      setShowAiDialog(false);
+    }
+    setAiLoading(false);
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -510,7 +421,7 @@ const TaskList = ({ onTasksChange }) => {
                               <ListItemIcon>
                                 <Checkbox
                                   checked={task.completed}
-                                  onChange={() => handleToggleComplete(task.id)}
+                                  onChange={() => handleToggleComplete(task.id, task.completed)}
                                   icon={<FaCircle style={{ color: "#ccc" }} />}
                                   checkedIcon={<FaCheckCircle style={{ color: "#4caf50" }} />}
                                 />
@@ -577,7 +488,7 @@ const TaskList = ({ onTasksChange }) => {
                                 }}
                               >
                                 <Tooltip title="Edit">
-                                  <IconButton size="small" onClick={() => handleEditTask(task.id)} sx={{ fontSize: { xs: 16, sm: 20 }, color: { xs: '#1976d2', sm: '#667eea' } }}>
+                                  <IconButton size="small" onClick={() => handleEditTask(task.id, task.title)} sx={{ fontSize: { xs: 16, sm: 20 }, color: { xs: '#1976d2', sm: '#667eea' } }}>
                                     <FaEdit />
                                   </IconButton>
                                 </Tooltip>
@@ -642,7 +553,7 @@ const TaskList = ({ onTasksChange }) => {
                       fullWidth
                       startIcon={<FaCheck />}
                       onClick={() => {
-                        setTasks(prev => prev.map(task => ({ ...task, completed: true })));
+                        tasks.forEach(task => updateTask(task.id, { completed: true }));
                         toast.success("All tasks marked as completed! 🎉");
                       }}
                       sx={{ justifyContent: "flex-start" }}
@@ -654,7 +565,7 @@ const TaskList = ({ onTasksChange }) => {
                       fullWidth
                       startIcon={<FaCircle />}
                       onClick={() => {
-                        setTasks(prev => prev.map(task => ({ ...task, completed: false })));
+                        tasks.forEach(task => updateTask(task.id, { completed: false }));
                         toast.success("All tasks marked as active! 🔄");
                       }}
                       sx={{ justifyContent: "flex-start" }}
@@ -666,7 +577,7 @@ const TaskList = ({ onTasksChange }) => {
                       fullWidth
                       startIcon={<FaTrash />}
                       onClick={() => {
-                        setTasks(prev => prev.filter(task => !task.completed));
+                        tasks.filter(task => task.completed).forEach(task => deleteTask(task.id));
                         toast.success("Completed tasks cleared! 🗑️");
                       }}
                       sx={{ justifyContent: "flex-start" }}

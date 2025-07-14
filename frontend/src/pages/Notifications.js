@@ -38,63 +38,35 @@ import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import styles from "./Notifications.module.css";
 import { useAuth } from "../firebase/useAuth";
 import Loader from "../components/Loader";
+import { useFirestoreNotifications } from '../hooks/useFirestoreNotifications';
 
 function Notifications() {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState([]);
+  const { notifications, addNotification, updateNotification, deleteNotification } = useFirestoreNotifications();
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [fcmToken, setFcmToken] = useState(getStoredFcmToken());
+  const [fcmToken, setFcmToken] = useState("");
   const [settings, setSettings] = useState({
     email: true,
     push: true,
     sms: false,
     desktop: true
   });
-
   const token = localStorage.getItem("token");
   const api = process.env.REACT_APP_BACKEND_URL;
 
-  // Load notifications and settings from localStorage on component mount
-  useEffect(() => {
-    if (!token) return;
+  // Remove all localStorage usage for notifications
 
-    // Load saved notifications
-    const savedNotifications = loadFromStorage(storageKeys.NOTIFICATIONS, user?.uid, null, 'notifications');
-    if (savedNotifications) {
-      setNotifications(savedNotifications);
-    }
-
-    // Load saved settings
-    const savedSettings = loadFromStorage(storageKeys.NOTIFICATION_SETTINGS, user?.uid);
-    if (savedSettings) {
-      setSettings(savedSettings);
-    }
-  }, [token, user?.uid]);
-
-  // Save notifications to localStorage whenever notifications change
-  useEffect(() => {
-    if (user?.uid && notifications.length > 0) {
-      saveToStorage(storageKeys.NOTIFICATIONS, notifications, user.uid);
-    }
-  }, [notifications, user?.uid]);
-
-  // Save settings to localStorage whenever settings change
-  useEffect(() => {
-    if (user?.uid) {
-      saveToStorage(storageKeys.NOTIFICATION_SETTINGS, settings, user.uid);
-    }
-  }, [settings, user?.uid]);
-
+  // Notification CRUD handlers
   const handleSendNotification = async () => {
     if (!title.trim() || !message.trim()) {
       toast.error("Please fill in both title and message");
       return;
     }
-
     setLoading(true);
     try {
+      // Send notification to backend (if needed)
       const res = await fetch(`${api}/api/notifications/send`, {
         method: "POST",
         headers: {
@@ -108,21 +80,17 @@ function Notifications() {
           settings 
         })
       });
-
       if (res.ok) {
         toast.success("Notification sent successfully! 🎉");
-        
-        // Add to local notifications
+        // Add to Firestore notifications
         const newNotification = {
-          id: Date.now(),
           type: "info",
           title: title,
           message: message,
           timestamp: new Date(),
           read: false
         };
-        setNotifications(prev => [newNotification, ...prev]);
-        
+        await addNotification(newNotification);
         setTitle("");
         setMessage("");
       } else {
@@ -155,19 +123,21 @@ function Notifications() {
     }));
   };
 
-  const handleMarkAsRead = (notificationId) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId 
-          ? { ...notif, read: true }
-          : notif
-      )
-    );
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await updateNotification(notificationId, { read: true });
+    } catch (error) {
+      toast.error("Failed to mark as read");
+    }
   };
 
-  const handleDeleteNotification = (notificationId) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
-    toast.success("Notification deleted");
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      await deleteNotification(notificationId);
+      toast.success("Notification deleted");
+    } catch (error) {
+      toast.error("Failed to delete notification");
+    }
   };
 
   const getNotificationIcon = (type) => {

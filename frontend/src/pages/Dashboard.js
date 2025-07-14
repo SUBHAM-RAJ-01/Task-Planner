@@ -504,9 +504,14 @@ function Dashboard() {
                         onClick={async () => {
                           setAiSuggestLoading(true);
                           try {
-                            const prioritized = await AIService.prioritizeTasks(tasks.filter(t => !t.completed));
+                            const uncompleted = tasks.filter(t => !t.completed);
+                            console.log("Uncompleted tasks:", uncompleted);
+                            const prioritized = await AIService.prioritizeTasks(uncompleted);
                             if (prioritized && prioritized.length > 0) {
                               setAiSuggestedTask(prioritized[0]);
+                              setAiSuggestOpen(true);
+                            } else if (uncompleted.length > 0) {
+                              setAiSuggestedTask(uncompleted[0]);
                               setAiSuggestOpen(true);
                             } else {
                               toast.info("No pending tasks to suggest.");

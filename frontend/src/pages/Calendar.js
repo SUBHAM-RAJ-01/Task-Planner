@@ -50,10 +50,11 @@ import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-picker
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import AIService from '../services/aiService';
 import { useTheme } from '@mui/material/styles';
+import { useFirestoreEvents } from '../hooks/useFirestoreEvents';
 
 function Calendar() {
   const { user } = useAuth();
-  const [events, setEvents] = useState([]);
+  const { events, addEvent, updateEvent, deleteEvent } = useFirestoreEvents();
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [startTime, setStartTime] = useState(null);
@@ -63,14 +64,11 @@ function Calendar() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [category, setCategory] = useState('');
-
   const token = localStorage.getItem("token");
   const api = process.env.REACT_APP_BACKEND_URL;
-
   const categoryOptions = [
     'Personal', 'Wedding', 'Party', 'Meeting', 'Call', 'Study', 'Skills', 'Exam', 'Presentation', 'Submission', 'Other'
   ];
-
   const theme = useTheme();
 
   // Update current time every second
@@ -80,26 +78,6 @@ function Calendar() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
-  // Load events from localStorage on component mount
-  useEffect(() => {
-    if (!token) return;
-    
-    const savedEvents = loadFromStorage(storageKeys.EVENTS, user?.uid, null, 'events');
-    if (savedEvents) {
-      setEvents(savedEvents);
-    } else {
-      // Load sample events if no saved data
-      loadSampleEvents();
-    }
-  }, [token, user?.uid]);
-
-  // Save events to localStorage whenever events change
-  useEffect(() => {
-    if (user?.uid && events.length > 0) {
-      saveToStorage(storageKeys.EVENTS, events, user.uid);
-    }
-  }, [events, user?.uid]);
 
   // Auto-detect category when title or description changes
   useEffect(() => {
@@ -115,37 +93,68 @@ function Calendar() {
     // eslint-disable-next-line
   }, [title, description]);
 
-  const loadSampleEvents = () => {
-    const sampleEvents = [
-      {
-        id: 1,
-        title: "Team Meeting",
-        start: "2024-01-15T10:00:00",
-        end: "2024-01-15T11:00:00",
-        description: "Weekly team sync meeting",
-        location: "Conference Room A",
-        type: "meeting"
-      },
-      {
-        id: 2,
-        title: "Project Deadline",
-        start: "2024-01-20T17:00:00",
-        end: "2024-01-20T18:00:00",
-        description: "Submit final project deliverables",
-        location: "Office",
-        type: "deadline"
-      },
-      {
-        id: 3,
-        title: "Client Call",
-        start: "2024-01-18T14:00:00",
-        end: "2024-01-18T15:00:00",
-        description: "Discuss project requirements",
-        location: "Zoom",
-        type: "call"
-      }
-    ];
-    setEvents(sampleEvents);
+  // Helper to combine date and time into a single Date object
+  const combineDateAndTime = (date, time) => {
+    if (!date || !time) return null;
+    const d = new Date(date);
+    const t = new Date(time);
+    d.setHours(t.getHours(), t.getMinutes(), 0, 0);
+    return d;
+  };
+
+  // Event CRUD handlers
+  const handleAddEvent = async () => {
+    if (!title.trim() || !startDate || !startTime) {
+      toast.error('Please fill in all event details');
+      return;
+    }
+    setLoading(true);
+    try {
+      const start = combineDateAndTime(startDate, startTime);
+      const end = new Date(start);
+      end.setHours(end.getHours() + 1); // Default: 1 hour event
+      const event = {
+        title: title.trim(),
+        start,
+        end,
+        description,
+        location,
+        category,
+        type: category || 'event',
+        createdAt: new Date().toISOString()
+      };
+      await addEvent(event);
+      setTitle("");
+      setStartDate(null);
+      setStartTime(null);
+      setDescription("");
+      setLocation("");
+      setCategory('');
+      toast.success('Event added successfully!');
+    } catch (error) {
+      toast.error('Failed to add event');
+    }
+    setLoading(false);
+  };
+
+  const handleEditEvent = async (eventId, oldTitle) => {
+    const newTitle = prompt('Edit event title', oldTitle);
+    if (!newTitle || newTitle.trim() === "") return;
+    try {
+      await updateEvent(eventId, { title: newTitle.trim() });
+      toast.success('Event updated successfully');
+    } catch (error) {
+      toast.error('Failed to update event');
+    }
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    try {
+      await deleteEvent(eventId);
+      toast.success('Event deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete event');
+    }
   };
 
   // Helper to combine date and time picker values
@@ -157,64 +166,6 @@ function Calendar() {
       d.setHours(t.getHours(), t.getMinutes(), 0, 0);
     }
     return d;
-  };
-
-  const handleAdd = async () => {
-    if (!title.trim() || !startDate || !startTime) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    setLoading(true);
-    try {
-      const start = getTimeAsDate(startDate, startTime);
-      let end = null;
-      if (start) {
-        end = start.toISOString();
-      }
-      const newEvent = {
-        id: Date.now(),
-        title: title.trim(),
-        start: start ? start.toISOString() : '',
-        end: end ? end.toISOString() : (start ? start.toISOString() : ''),
-        description: description.trim(),
-        location: location.trim(),
-        type: "event",
-        category: category.trim() || 'event',
-      };
-      setEvents(prev => [...prev, newEvent]);
-      setTitle("");
-      setStartDate(null);
-      setStartTime(null);
-      setDescription("");
-      setLocation("");
-      toast.success("Event added successfully! 🎉");
-    } catch (err) {
-      toast.error("Failed to add event");
-    }
-    setLoading(false);
-  };
-
-  const handleDelete = async (event) => {
-    try {
-      setEvents(prev => prev.filter(e => e.id !== event.id));
-      toast.success("Event deleted successfully");
-    } catch (err) {
-      toast.error("Failed to delete event");
-    }
-  };
-
-  const handleEdit = async (event) => {
-    const newTitle = prompt("Edit event title", event.title);
-    if (!newTitle) return;
-    
-    try {
-      setEvents(prev => prev.map(e => 
-        e.id === event.id ? { ...e, title: newTitle } : e
-      ));
-      toast.success("Event updated successfully");
-    } catch (err) {
-      toast.error("Failed to update event");
-    }
   };
 
   const formatTime = (date) => {
@@ -251,6 +202,13 @@ function Calendar() {
       case 'call': return '#48bb78';
       default: return '#ed8936';
     }
+  };
+
+  // Helper to safely convert Firestore Timestamp or string to JS Date
+  const getEventDate = (date) => {
+    if (!date) return null;
+    if (typeof date.toDate === 'function') return date.toDate();
+    return new Date(date);
   };
 
   const containerVariants = {
@@ -360,7 +318,7 @@ function Calendar() {
                       </LocalizationProvider>
                       <Button
                         variant="contained"
-                        onClick={handleAdd}
+                        onClick={handleAddEvent}
                         disabled={loading || !title.trim() || !startDate || !startTime}
                         sx={{
                           background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -447,7 +405,7 @@ function Calendar() {
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
                                       <MdAccessTime style={{ fontSize: "1rem", color: "#667eea" }} />
                                       <Typography variant="body2" color="text.secondary">
-                                        {new Date(event.start).toLocaleString()}
+                                        {getEventDate(event.start)?.toLocaleString() || 'No date'}
                                       </Typography>
                                     </Box>
                                     {event.location && (
@@ -468,13 +426,13 @@ function Calendar() {
                               />
                               <Box sx={{ display: "flex", gap: 1 }}>
                                 <IconButton
-                                  onClick={() => handleEdit(event)}
+                                  onClick={() => handleEditEvent(event.id, event.title)}
                                   sx={{ color: "#667eea" }}
                                 >
                                   <FaEdit />
                                 </IconButton>
                                 <IconButton
-                                  onClick={() => handleDelete(event)}
+                                  onClick={() => handleDeleteEvent(event.id)}
                                   sx={{ color: "#f56565" }}
                                 >
                                   <FaTrash />
@@ -567,7 +525,7 @@ function Calendar() {
                         <Typography variant="body2">This Week</Typography>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {events.filter(e => {
-                            const eventDate = new Date(e.start);
+                            const eventDate = getEventDate(e.start);
                             const weekStart = new Date(currentTime);
                             weekStart.setDate(currentTime.getDate() - currentTime.getDay());
                             const weekEnd = new Date(weekStart);
@@ -580,7 +538,7 @@ function Calendar() {
                         <Typography variant="body2">This Month</Typography>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {events.filter(e => {
-                            const eventDate = new Date(e.start);
+                            const eventDate = getEventDate(e.start);
                             return eventDate.getMonth() === currentTime.getMonth() && 
                                    eventDate.getFullYear() === currentTime.getFullYear();
                           }).length}
