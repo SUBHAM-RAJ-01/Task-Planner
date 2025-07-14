@@ -503,6 +503,8 @@ const TaskList = ({ onTasksChange }) => {
                                 opacity: task.completed ? 0.7 : 1,
                                 flexWrap: { xs: 'wrap', sm: 'nowrap' },
                                 alignItems: { xs: 'flex-start', sm: 'center' },
+                                display: 'flex',
+                                justifyContent: 'space-between',
                               }}
                             >
                               <ListItemIcon>
@@ -568,10 +570,10 @@ const TaskList = ({ onTasksChange }) => {
                                   display: 'flex',
                                   gap: 1,
                                   position: 'static',
-                                  marginLeft: { xs: 'auto', sm: 2 },
+                                  marginLeft: 'auto',
                                   marginTop: { xs: 1, sm: 0 },
-                                  justifyContent: { xs: 'flex-end', sm: 'flex-start' },
-                                  width: { xs: '100%', sm: 'auto' },
+                                  justifyContent: 'flex-end',
+                                  width: { xs: 'auto', sm: 'auto' },
                                 }}
                               >
                                 <Tooltip title="Edit">

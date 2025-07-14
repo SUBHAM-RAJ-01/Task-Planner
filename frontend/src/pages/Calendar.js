@@ -17,7 +17,11 @@ import {
   ListItem,
   ListItemText,
   ListItemAvatar,
-  Avatar
+  Avatar,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
@@ -42,21 +46,29 @@ import EventList from "../components/EventList";
 import { useAuth } from "../firebase/useAuth";
 import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import Loader from "../components/Loader";
+import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import AIService from '../services/aiService';
 
 function Calendar() {
   const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [title, setTitle] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [startDate, setStartDate] = useState(null);
+  const [startTime, setStartTime] = useState(null);
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [category, setCategory] = useState('');
 
   const token = localStorage.getItem("token");
   const api = process.env.REACT_APP_BACKEND_URL;
+
+  const categoryOptions = [
+    'Personal', 'Wedding', 'Party', 'Meeting', 'Call', 'Study', 'Skills', 'Exam', 'Presentation', 'Submission', 'Other'
+  ];
 
   // Update current time every second
   useEffect(() => {
@@ -85,6 +97,20 @@ function Calendar() {
       saveToStorage(storageKeys.EVENTS, events, user.uid);
     }
   }, [events, user?.uid]);
+
+  // Auto-detect category when title or description changes
+  useEffect(() => {
+    const detectCategory = async () => {
+      if (title.trim() || description.trim()) {
+        const cat = await AIService.suggestCategory(title + ' ' + description);
+        // Try to match AI suggestion to one of the options
+        const match = categoryOptions.find(opt => cat.toLowerCase().includes(opt.toLowerCase()));
+        setCategory(match || cat || 'Other');
+      }
+    };
+    detectCategory();
+    // eslint-disable-next-line
+  }, [title, description]);
 
   const loadSampleEvents = () => {
     const sampleEvents = [
@@ -119,28 +145,43 @@ function Calendar() {
     setEvents(sampleEvents);
   };
 
+  // Helper to combine date and time picker values
+  const getTimeAsDate = (date, time) => {
+    if (!date || !time) return null;
+    const d = new Date(date);
+    const t = typeof time === 'string' ? new Date(time) : time;
+    if (typeof t.getHours === 'function') {
+      d.setHours(t.getHours(), t.getMinutes(), 0, 0);
+    }
+    return d;
+  };
+
   const handleAdd = async () => {
-    if (!title.trim() || !start.trim()) {
-      toast.error("Please fill in title and start time");
+    if (!title.trim() || !startDate || !startTime) {
+      toast.error('Please fill in all required fields');
       return;
     }
-
     setLoading(true);
     try {
+      const start = getTimeAsDate(startDate, startTime);
+      let end = null;
+      if (start) {
+        end = start.toISOString();
+      }
       const newEvent = {
         id: Date.now(),
         title: title.trim(),
-        start: start,
-        end: end || start,
+        start: start ? start.toISOString() : '',
+        end: end ? end.toISOString() : (start ? start.toISOString() : ''),
         description: description.trim(),
         location: location.trim(),
-        type: "event"
+        type: "event",
+        category: category.trim() || 'event',
       };
-
       setEvents(prev => [...prev, newEvent]);
       setTitle("");
-      setStart("");
-      setEnd("");
+      setStartDate(null);
+      setStartTime(null);
       setDescription("");
       setLocation("");
       toast.success("Event added successfully! 🎉");
@@ -272,89 +313,61 @@ function Calendar() {
           <Grid container spacing={3}>
             <Grid item xs={12} lg={8}>
               <motion.div variants={itemVariants}>
-                <Card sx={{ 
-                  background: "rgba(255, 255, 255, 0.95)",
-                  backdropFilter: "blur(20px)",
-                  borderRadius: 3,
-                  mb: 3
-                }}>
+                <Card sx={{ mb: 3 }}>
                   <CardContent>
                     <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
                       <FaPlus style={{ color: "#667eea" }} />
                       Add New Event
                     </Typography>
-                    
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          label="Event Title"
-                          value={title}
-                          onChange={e => setTitle(e.target.value)}
-                          fullWidth
-                          variant="outlined"
-                          sx={{ mb: 2 }}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <TextField
+                        label="Event Title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        fullWidth
+                        variant="outlined"
+                        placeholder="Enter event title..."
+                      />
+                      <FormControl fullWidth variant="outlined">
+                        <InputLabel id="category-label">Category</InputLabel>
+                        <Select
+                          labelId="category-label"
+                          value={category}
+                          onChange={e => setCategory(e.target.value)}
+                          label="Category"
+                        >
+                          {categoryOptions.map(opt => (
+                            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <LocalizationProvider dateAdapter={AdapterDateFns}>
+                        <DatePicker
+                          label="Start Date"
+                          value={startDate}
+                          onChange={setStartDate}
+                          slotProps={{ textField: { fullWidth: true, variant: 'outlined' } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          label="Location"
-                          value={location}
-                          onChange={e => setLocation(e.target.value)}
-                          fullWidth
-                          variant="outlined"
-                          sx={{ mb: 2 }}
+                        <TimePicker
+                          label="Start Time"
+                          value={startTime}
+                          onChange={setStartTime}
+                          slotProps={{ textField: { fullWidth: true, variant: 'outlined' } }}
                         />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          label="Start Date & Time"
-                          type="datetime-local"
-                          value={start}
-                          onChange={e => setStart(e.target.value)}
-                          fullWidth
-                          variant="outlined"
-                          InputLabelProps={{ shrink: true }}
-                          sx={{ mb: 2 }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          label="End Date & Time"
-                          type="datetime-local"
-                          value={end}
-                          onChange={e => setEnd(e.target.value)}
-                          fullWidth
-                          variant="outlined"
-                          InputLabelProps={{ shrink: true }}
-                          sx={{ mb: 2 }}
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <TextField
-                          label="Description"
-                          value={description}
-                          onChange={e => setDescription(e.target.value)}
-                          fullWidth
-                          multiline
-                          rows={3}
-                          variant="outlined"
-                          sx={{ mb: 2 }}
-                        />
-                      </Grid>
-                    </Grid>
-
-                    <Button
-                      variant="contained"
-                      onClick={handleAdd}
-                      disabled={loading || !title.trim() || !start.trim()}
-                      sx={{
-                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                        color: "white",
-                        mt: 2
-                      }}
-                    >
-                      {loading ? "Adding..." : "Add Event"}
-                    </Button>
+                      </LocalizationProvider>
+                      <Button
+                        variant="contained"
+                        onClick={handleAdd}
+                        disabled={loading || !title.trim() || !startDate || !startTime}
+                        sx={{
+                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          color: "white",
+                          mt: 2
+                        }}
+                      >
+                        {loading ? "Adding..." : "Add Event"}
+                      </Button>
+                    </Box>
                   </CardContent>
                 </Card>
 
@@ -596,8 +609,10 @@ function Calendar() {
                           const tomorrow = new Date(now);
                           tomorrow.setDate(tomorrow.getDate() + 1);
                           setTitle("New Event");
-                          setStart(tomorrow.toISOString().slice(0, 16));
-                          setEnd(tomorrow.toISOString().slice(0, 16));
+                          setStartDate(tomorrow);
+                          setStartTime(new Date(tomorrow).setHours(9, 0, 0, 0)); // Set to 9 AM
+                          setEndDate(tomorrow);
+                          setEndTime(new Date(tomorrow).setHours(10, 0, 0, 0)); // Set to 10 AM
                         }}
                         sx={{ justifyContent: "flex-start" }}
                       >

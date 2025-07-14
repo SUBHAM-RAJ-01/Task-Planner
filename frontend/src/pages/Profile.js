@@ -31,7 +31,11 @@ import {
   FaTasks,
   FaEdit,
   FaSave,
-  FaRocket
+  FaRocket,
+  FaFire,
+  FaStar,
+  FaMedal,
+  FaCheckCircle
 } from "react-icons/fa";
 import { MdDashboard, MdSecurity, MdNotifications } from "react-icons/md";
 import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
@@ -167,6 +171,35 @@ function Profile() {
     const created = new Date(profile.createdAt);
     return Math.floor((now - created) / (1000 * 60 * 60 * 24));
   };
+
+  // Helper to get streak from stats or tasks
+  const getStreakTier = (streak) => {
+    if (streak >= 30) return { label: 'Platinum Streak', color: 'secondary', icon: <FaMedal style={{ color: '#b3e5fc' }} /> };
+    if (streak >= 14) return { label: 'Gold Streak', color: 'warning', icon: <FaStar style={{ color: '#ffd700' }} /> };
+    if (streak >= 7) return { label: 'Silver Streak', color: 'primary', icon: <FaStar style={{ color: '#90caf9' }} /> };
+    if (streak >= 3) return { label: 'Bronze Streak', color: 'success', icon: <FaFire style={{ color: '#ed8936' }} /> };
+    return null;
+  };
+  const streakTier = getStreakTier(stats.streak);
+
+  // Compute earned badges
+  const daysSinceCreation = getDaysSinceCreation();
+  const earnedBadges = [];
+  if (stats.completedTasks > 0) {
+    earnedBadges.push({ label: 'First Task', color: 'success', icon: <FaCheckCircle />, desc: 'Completed your first task' });
+  }
+  if (stats.streak >= 7) {
+    earnedBadges.push({ label: '7 Day Streak', color: 'primary', icon: <FaFire />, desc: 'Used SmartPlan for 7 days' });
+  }
+  if (stats.completedTasks >= 50) {
+    earnedBadges.push({ label: 'Task Master', color: 'warning', icon: <FaStar />, desc: 'Completed 50 tasks' });
+  }
+  if (streakTier) {
+    earnedBadges.push({ label: streakTier.label, color: streakTier.color, icon: streakTier.icon, desc: `Current streak: ${stats.streak} days` });
+  }
+  if (daysSinceCreation <= 2 || stats.completedTasks === 0) {
+    earnedBadges.push({ label: 'Starter', color: 'default', icon: <FaRocket />, desc: 'Welcome to SmartPlan! Start your productivity journey.' });
+  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -519,20 +552,16 @@ function Profile() {
                       <FaTrophy style={{ color: "#667eea" }} />
                       Achievements
                     </Typography>
-                    
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <Chip label="First Task" color="success" size="small" />
-                        <Typography variant="body2">Completed your first task</Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <Chip label="7 Day Streak" color="primary" size="small" />
-                        <Typography variant="body2">Used SmartPlan for 7 days</Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <Chip label="Task Master" color="warning" size="small" />
-                        <Typography variant="body2">Completed 50 tasks</Typography>
-                      </Box>
+                      {earnedBadges.length === 0 && (
+                        <Typography variant="body2" color="text.secondary">No achievements yet. Start completing tasks to earn badges!</Typography>
+                      )}
+                      {earnedBadges.map((badge, idx) => (
+                        <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                          <Chip label={badge.label} color={badge.color} size="medium" icon={badge.icon} />
+                          <Typography variant="body2">{badge.desc}</Typography>
+                        </Box>
+                      ))}
                     </Box>
                   </CardContent>
                 </Card>
