@@ -696,6 +696,7 @@ function Profile() {
                         fullWidth
                         startIcon={<FaBell />}
                         sx={{ justifyContent: "flex-start" }}
+                        onClick={() => { throw new Error('Test error: Two-Factor Auth not implemented'); }}
                       >
                         Two-Factor Auth
                       </Button>
