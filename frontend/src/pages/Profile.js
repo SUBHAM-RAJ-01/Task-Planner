@@ -15,7 +15,11 @@ import {
   Divider,
   Chip,
   LinearProgress,
-  IconButton
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
@@ -43,7 +47,7 @@ import styles from "./Profile.module.css";
 import { useAuth } from "../firebase/useAuth";
 
 function Profile() {
-  const { user } = useAuth();
+  const { user, updateEmail } = useAuth();
   const [profile, setProfile] = useState({
     firstName: user?.displayName?.split(' ')[0] || '',
     lastName: user?.displayName?.split(' ')[1] || '',
@@ -75,6 +79,11 @@ function Profile() {
     push: true,
     sms: false
   });
+
+  const [changeEmailOpen, setChangeEmailOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState("");
 
   // Load profile data from localStorage on component mount
   useEffect(() => {
@@ -200,6 +209,25 @@ function Profile() {
   if (daysSinceCreation <= 2 || stats.completedTasks === 0) {
     earnedBadges.push({ label: 'Starter', color: 'default', icon: <FaRocket />, desc: 'Welcome to SmartPlan! Start your productivity journey.' });
   }
+
+  // Account stats: use user metadata if available
+  const memberSince = user?.metadata?.creationTime ? new Date(user.metadata.creationTime) : (profile.createdAt ? new Date(profile.createdAt) : null);
+  const lastSignIn = user?.metadata?.lastSignInTime ? new Date(user.metadata.lastSignInTime) : (profile.lastSignIn ? new Date(profile.lastSignIn) : null);
+
+  // Change Email handler
+  const handleChangeEmail = async () => {
+    setEmailLoading(true);
+    setEmailError("");
+    try {
+      await updateEmail(newEmail);
+      setProfile(prev => ({ ...prev, email: newEmail }));
+      setChangeEmailOpen(false);
+      setNewEmail("");
+    } catch (err) {
+      setEmailError(err.message || "Failed to update email");
+    }
+    setEmailLoading(false);
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -474,7 +502,7 @@ function Profile() {
                           <Typography variant="body2">Member Since</Typography>
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {profile.createdAt?.toLocaleDateString()}
+                          {memberSince ? memberSince.toLocaleDateString() : "-"}
                         </Typography>
                       </Box>
                       
@@ -484,7 +512,7 @@ function Profile() {
                           <Typography variant="body2">Last Sign In</Typography>
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {profile.lastSignIn?.toLocaleDateString()}
+                          {lastSignIn ? lastSignIn.toLocaleDateString() : "-"}
                         </Typography>
                       </Box>
                       
@@ -494,7 +522,7 @@ function Profile() {
                           <Typography variant="body2">Days Active</Typography>
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {getDaysSinceCreation()}
+                          {memberSince ? getDaysSinceCreation() : "-"}
                         </Typography>
                       </Box>
                     </Box>
@@ -519,6 +547,7 @@ function Profile() {
                         fullWidth
                         startIcon={<FaEnvelope />}
                         sx={{ justifyContent: "flex-start" }}
+                        onClick={() => setChangeEmailOpen(true)}
                       >
                         Change Email
                       </Button>
@@ -570,6 +599,29 @@ function Profile() {
           </Grid>
         </motion.div>
       </Container>
+      <Dialog open={changeEmailOpen} onClose={() => setChangeEmailOpen(false)}>
+        <DialogTitle>Change Email</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="New Email"
+            type="email"
+            value={newEmail}
+            onChange={e => setNewEmail(e.target.value)}
+            fullWidth
+            margin="normal"
+            autoFocus
+            disabled={emailLoading}
+            error={!!emailError}
+            helperText={emailError}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setChangeEmailOpen(false)} disabled={emailLoading}>Cancel</Button>
+          <Button onClick={handleChangeEmail} disabled={emailLoading || !newEmail} variant="contained">
+            {emailLoading ? "Updating..." : "Update Email"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -335,6 +335,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateEmail = async (newEmail) => {
+    if (!user || !newEmail) throw new Error("No user or email");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ email: newEmail })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update email");
+      }
+      const data = await res.json();
+      setUser(prev => ({ ...prev, email: data.user.email }));
+      toast.success("Email updated successfully!");
+      return data.user.email;
+    } catch (err) {
+      toast.error(err.message || "Failed to update email");
+      throw err;
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -343,7 +369,8 @@ export const AuthProvider = ({ children }) => {
     signUp,
     signInWithGoogle,
     signOut,
-    resetPassword
+    resetPassword,
+    updateEmail
   };
 
   return (

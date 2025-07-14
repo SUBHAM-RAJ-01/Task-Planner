@@ -24,12 +24,15 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Update displayName or notification settings
+// Update displayName, email, or notification settings
 router.put('/', authenticateToken, async (req, res) => {
-  const { displayName, notificationSettings: newSettings } = req.body;
+  const { displayName, email, notificationSettings: newSettings } = req.body;
   try {
     if (displayName) {
       await admin.auth().updateUser(req.user.uid, { displayName });
+    }
+    if (email) {
+      await admin.auth().updateUser(req.user.uid, { email });
     }
     if (newSettings) {
       notificationSettings[req.user.uid] = {
