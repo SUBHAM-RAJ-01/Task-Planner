@@ -41,6 +41,75 @@ import { useAuth } from "../firebase/useAuth";
 import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import TaskList from "../components/TaskList";
 import AITaskCreator from "../components/AITaskCreator";
+import AnalyticsChart from "../components/AnalyticsChart";
+
+function getStartOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday as first day
+  return new Date(d.setDate(diff));
+}
+
+function getWeeklyData(tasks) {
+  const now = new Date();
+  const startOfWeek = getStartOfWeek(now);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startOfWeek);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  const data = days.map((d) => {
+    const dateStr = d.toISOString().split("T")[0];
+    const completedCount = tasks.filter(
+      (t) => t.completed && t.dueDate && t.dueDate.startsWith(dateStr)
+    ).length;
+    return { date: d.toLocaleDateString(undefined, { weekday: "short" }), completedCount };
+  });
+  return data;
+}
+
+function getAchievements(tasks, weeklyData) {
+  const achievements = [];
+  if (tasks.length > 0) {
+    achievements.push({
+      icon: 'FaCheckCircle',
+      color: '#48bb78',
+      title: 'First Task',
+      desc: 'Completed your first task'
+    });
+  }
+  const completedToday = tasks.filter(t => t.completed && t.dueDate && t.dueDate === new Date().toISOString().split('T')[0]).length;
+  if (completedToday >= 5) {
+    achievements.push({
+      icon: 'FaCheckCircle',
+      color: '#48bb78',
+      title: 'Task Master',
+      desc: `Completed ${completedToday} tasks today` });
+  }
+  const streak = weeklyData.reduceRight((acc, d) => d.completedCount > 0 ? acc + 1 : (acc > 0 ? acc : 0), 0);
+  if (streak >= 3) {
+    achievements.push({
+      icon: 'FaFire',
+      color: '#ed8936',
+      title: 'Streak Champion',
+      desc: `${streak}-day productivity streak` });
+  }
+  if (tasks.filter(t => t.completed).length >= 10) {
+    achievements.push({
+      icon: 'FaStar',
+      color: '#667eea',
+      title: 'Goal Crusher',
+      desc: 'Completed 10+ tasks' });
+  }
+  if (tasks.filter(t => t.completed).length >= 50) {
+    achievements.push({
+      icon: 'FaTrophy',
+      color: '#ffd700',
+      title: 'Legend',
+      desc: 'Completed 50+ tasks' });
+  }
+  return achievements;
+}
 
 function Dashboard() {
   const { user } = useAuth();
@@ -52,6 +121,7 @@ function Dashboard() {
     upcomingEvents: 0,
     productivity: 0
   });
+  const [tasks, setTasks] = useState([]);
 
   // Load dashboard data from localStorage on component mount
   useEffect(() => {
@@ -72,6 +142,13 @@ function Dashboard() {
         productivity: 85
       });
     }
+  }, [user?.uid]);
+
+  // Load tasks for weekly progress
+  useEffect(() => {
+    if (!user?.uid) return;
+    const savedTasks = loadFromStorage(storageKeys.TASKS, user.uid, null, 'tasks');
+    setTasks(savedTasks || []);
   }, [user?.uid]);
 
   // Save stats to localStorage whenever stats change
@@ -112,6 +189,9 @@ function Dashboard() {
     { name: "Completed", value: stats.completedTasks, color: "#48bb78" },
     { name: "Pending", value: stats.pendingTasks, color: "#ed8936" }
   ];
+
+  const weeklyData = getWeeklyData(tasks);
+  const achievements = getAchievements(tasks, weeklyData);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -200,53 +280,28 @@ function Dashboard() {
                       <FaChartLine style={{ color: "#667eea" }} />
                       Productivity Analytics
                     </Typography>
-                    
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
-                        <Box sx={{ textAlign: "center", mb: 3 }}>
-                          <Typography variant="h4" sx={{ fontWeight: 700, color: "#667eea", mb: 1 }}>
-                            {stats.productivity}%
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Overall Productivity
-                          </Typography>
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={stats.productivity} 
-                            sx={{ 
-                              mt: 2, 
-                              height: 8, 
-                              borderRadius: 4,
-                              backgroundColor: "rgba(102, 126, 234, 0.2)",
-                              "& .MuiLinearProgress-bar": {
-                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                borderRadius: 4
-                              }
-                            }} 
-                          />
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <ResponsiveContainer width="100%" height={200}>
-                          <PieChart>
-                            <Pie
-                              data={taskData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={40}
-                              outerRadius={80}
-                              paddingAngle={5}
-                              dataKey="value"
-                            >
-                              {taskData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <RechartsTooltip />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </Grid>
-                    </Grid>
+                    <AnalyticsChart analytics={{
+                      typeCounts: {
+                        Completed: stats.completedTasks,
+                        Pending: stats.pendingTasks
+                      },
+                      completionRate: stats.totalTasks > 0 ? stats.completedTasks / stats.totalTasks : 0
+                    }} weeklyData={weeklyData} />
+                    {weeklyData.length > 0 && (
+                      <Box sx={{ mt: 2, textAlign: "center" }}>
+                        {(() => {
+                          const streak = weeklyData.reduceRight((acc, d) => d.completedCount > 0 ? acc + 1 : (acc > 0 ? acc : 0), 0);
+                          if (streak >= 5) {
+                            return <Chip color="success" label={`🔥 Amazing! ${streak}-day streak!`} sx={{ fontWeight: 600 }} />;
+                          } else if (streak >= 3) {
+                            return <Chip color="warning" label={`👏 ${streak}-day streak! Keep it up!`} sx={{ fontWeight: 600 }} />;
+                          } else if (streak === 0) {
+                            return <Chip color="default" label="Start a new streak today!" sx={{ fontWeight: 600 }} />;
+                          }
+                          return null;
+                        })()}
+                      </Box>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -351,47 +406,24 @@ function Dashboard() {
                       <FaFire style={{ color: "#667eea" }} />
                       Recent Achievements
                     </Typography>
-                    
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <Avatar sx={{ bgcolor: "#48bb78", width: 32, height: 32 }}>
-                          <FaCheckCircle />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Task Master
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Completed 5 tasks today
-                          </Typography>
+                      {achievements.length === 0 && (
+                        <Typography variant="body2" color="text.secondary">No achievements yet. Start completing tasks!</Typography>
+                      )}
+                      {achievements.map((ach, idx) => (
+                        <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                          <Avatar sx={{ bgcolor: ach.color, width: 32, height: 32 }}>
+                            {ach.icon === 'FaCheckCircle' && <FaCheckCircle />}
+                            {ach.icon === 'FaFire' && <FaFire />}
+                            {ach.icon === 'FaStar' && <FaStar />}
+                            {ach.icon === 'FaTrophy' && <FaTrophy />}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{ach.title}</Typography>
+                            <Typography variant="caption" color="text.secondary">{ach.desc}</Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <Avatar sx={{ bgcolor: "#ed8936", width: 32, height: 32 }}>
-                          <FaFire />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Streak Champion
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            7-day productivity streak
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <Avatar sx={{ bgcolor: "#667eea", width: 32, height: 32 }}>
-                          <FaStar />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Goal Crusher
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Exceeded weekly targets
-                          </Typography>
-                        </Box>
-                      </Box>
+                      ))}
                     </Box>
                   </CardContent>
                 </Card>

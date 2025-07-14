@@ -24,7 +24,11 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -61,6 +65,7 @@ const TaskList = ({ onTasksChange }) => {
   const [aiInsights, setAiInsights] = useState(null);
   const [showAiDialog, setShowAiDialog] = useState(false);
   const [aiTask, setAiTask] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState("medium");
 
   const token = localStorage.getItem("token");
   const api = process.env.REACT_APP_BACKEND_URL;
@@ -200,7 +205,7 @@ const TaskList = ({ onTasksChange }) => {
         id: Date.now(),
         title: newTask.trim(),
         description: "",
-        priority: "medium",
+        priority: newTaskPriority,
         dueDate: new Date().toISOString().split('T')[0],
         completed: false,
         createdAt: new Date().toISOString()
@@ -208,6 +213,7 @@ const TaskList = ({ onTasksChange }) => {
 
       setTasks(prev => [...prev, task]);
       setNewTask("");
+      setNewTaskPriority("medium");
       toast.success("Task added successfully! ✅");
     } catch (error) {
       toast.error("Failed to add task");
@@ -383,7 +389,13 @@ const TaskList = ({ onTasksChange }) => {
                     Add New Task
                   </Typography>
                   
-                  <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+                  <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end", flexWrap: 'wrap',
+                    '@media (max-width: 600px)': {
+                      flexDirection: 'column',
+                      alignItems: 'stretch',
+                      gap: 1,
+                    }
+                  }}>
                     <TextField
                       label="Task Title"
                       value={newTask}
@@ -393,6 +405,19 @@ const TaskList = ({ onTasksChange }) => {
                       placeholder="Enter task title..."
                       onKeyPress={(e) => e.key === "Enter" && handleAddTask()}
                     />
+                    <FormControl variant="outlined" sx={{ minWidth: 120 }}>
+                      <InputLabel id="priority-label">Priority</InputLabel>
+                      <Select
+                        labelId="priority-label"
+                        value={newTaskPriority}
+                        onChange={e => setNewTaskPriority(e.target.value)}
+                        label="Priority"
+                      >
+                        <MenuItem value="high">High</MenuItem>
+                        <MenuItem value="medium">Medium</MenuItem>
+                        <MenuItem value="low">Low</MenuItem>
+                      </Select>
+                    </FormControl>
                     <Button
                       variant="contained"
                       onClick={handleAddTask}
@@ -475,6 +500,8 @@ const TaskList = ({ onTasksChange }) => {
                                   boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                                 },
                                 opacity: task.completed ? 0.7 : 1,
+                                flexWrap: { xs: 'wrap', sm: 'nowrap' },
+                                alignItems: { xs: 'flex-start', sm: 'center' },
                               }}
                             >
                               <ListItemIcon>
@@ -535,25 +562,27 @@ const TaskList = ({ onTasksChange }) => {
                                 }
                               />
                               
-                              <ListItemSecondaryAction>
-                                <Box sx={{ display: "flex", gap: 1 }}>
-                                  <Tooltip title="Edit Task">
-                                    <IconButton
-                                      onClick={() => handleEditTask(task.id)}
-                                      sx={{ color: "#667eea" }}
-                                    >
-                                      <FaEdit />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Delete Task">
-                                    <IconButton
-                                      onClick={() => handleDeleteTask(task.id)}
-                                      sx={{ color: "#f56565" }}
-                                    >
-                                      <FaTrash />
-                                    </IconButton>
-                                  </Tooltip>
-                                </Box>
+                              <ListItemSecondaryAction
+                                sx={{
+                                  display: 'flex',
+                                  gap: 1,
+                                  position: 'static',
+                                  marginLeft: { xs: 'auto', sm: 2 },
+                                  marginTop: { xs: 1, sm: 0 },
+                                  justifyContent: { xs: 'flex-end', sm: 'flex-start' },
+                                  width: { xs: '100%', sm: 'auto' },
+                                }}
+                              >
+                                <Tooltip title="Edit">
+                                  <IconButton size="small" onClick={() => handleEditTask(task.id)} sx={{ fontSize: { xs: 16, sm: 20 }, color: { xs: '#1976d2', sm: '#667eea' } }}>
+                                    <FaEdit />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete">
+                                  <IconButton size="small" onClick={() => handleDeleteTask(task.id)} sx={{ fontSize: { xs: 16, sm: 20 }, color: { xs: '#d32f2f', sm: '#f56565' } }}>
+                                    <FaTrash />
+                                  </IconButton>
+                                </Tooltip>
                               </ListItemSecondaryAction>
                             </ListItem>
                           </motion.div>
