@@ -94,6 +94,9 @@ function Profile() {
   const bioRef = React.useRef();
   const [profileLoaded, setProfileLoaded] = useState(false);
 
+  // Add state for banner
+  const [bannerUrl, setBannerUrl] = useState(profile.bannerUrl || "");
+
   // Load profile data from localStorage on component mount
   useEffect(() => {
     if (!user?.uid) return;
@@ -146,6 +149,11 @@ function Profile() {
     };
     fetchProfile();
   }, [user?.uid]);
+
+  // Update profile state when backend/localStorage loads
+  useEffect(() => {
+    if (profile.bannerUrl) setBannerUrl(profile.bannerUrl);
+  }, [profile.bannerUrl]);
 
   // Save profile data to localStorage whenever profile changes, but only after initial load
   useEffect(() => {
@@ -259,28 +267,38 @@ function Profile() {
     setEmailLoading(false);
   };
 
-  // Replace handleAvatarChange with Firebase Storage upload and backend sync
+  // Helper to convert file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Avatar upload handler (localStorage only)
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
     if (file && user?.uid) {
-      const storage = getStorage(getApp());
-      const storageRef = ref(storage, `avatars/${user.uid}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+      const base64 = await fileToBase64(file);
+      setProfile(prev => ({ ...prev, photoURL: base64 }));
+      // Save to localStorage
+      const savedProfile = loadFromStorage(storageKeys.PROFILE, user.uid, null, 'profile') || {};
+      saveToStorage(storageKeys.PROFILE, { ...savedProfile, photoURL: base64 }, user.uid);
+    }
+  };
 
-      // Update Firestore via backend
-      const token = localStorage.getItem('token');
-      await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ photoURL: downloadURL })
-      });
-
-      // Update local state/UI
-      setProfile(prev => ({ ...prev, photoURL: downloadURL }));
+  // Banner upload handler (localStorage only)
+  const handleBannerChange = async (e) => {
+    const file = e.target.files[0];
+    if (file && user?.uid) {
+      const base64 = await fileToBase64(file);
+      setBannerUrl(base64);
+      setProfile(prev => ({ ...prev, bannerUrl: base64 }));
+      // Save to localStorage
+      const savedProfile = loadFromStorage(storageKeys.PROFILE, user.uid, null, 'profile') || {};
+      saveToStorage(storageKeys.PROFILE, { ...savedProfile, bannerUrl: base64 }, user.uid);
     }
   };
 
@@ -436,12 +454,35 @@ function Profile() {
                                 sx={{
                                   width: "100%",
                                   height: { xs: 120, md: 180 },
-                                  background: `url(${PROFILE_BANNER_URL}) center/cover no-repeat`,
+                                  background: `url(${bannerUrl || PROFILE_BANNER_URL}) center/cover no-repeat`,
                                   borderTopLeftRadius: 16,
                                   borderTopRightRadius: 16,
                                   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                                  position: "relative"
                                 }}
-                              />
+                              >
+                                <IconButton
+                                  component="label"
+                                  sx={{
+                                    position: "absolute",
+                                    top: 8,
+                                    right: 8,
+                                    background: "rgba(255,255,255,0.85)",
+                                    boxShadow: 1,
+                                    zIndex: 3,
+                                    '&:hover': { background: "#f0f0f0" }
+                                  }}
+                                  size="small"
+                                >
+                                  <PhotoCamera fontSize="small" />
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    hidden
+                                    onChange={handleBannerChange}
+                                  />
+                                </IconButton>
+                              </Box>
                               <Box sx={{ position: "absolute", left: "50%", bottom: -60, transform: "translateX(-50%)", zIndex: 2 }}>
                                 <Avatar
                                   src={profile.photoURL}

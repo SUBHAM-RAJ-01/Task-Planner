@@ -49,6 +49,7 @@ import Loader from "../components/Loader";
 import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import AIService from '../services/aiService';
+import { useTheme } from '@mui/material/styles';
 
 function Calendar() {
   const { user } = useAuth();
@@ -69,6 +70,8 @@ function Calendar() {
   const categoryOptions = [
     'Personal', 'Wedding', 'Party', 'Meeting', 'Call', 'Study', 'Skills', 'Exam', 'Presentation', 'Submission', 'Other'
   ];
+
+  const theme = useTheme();
 
   // Update current time every second
   useEffect(() => {
@@ -274,7 +277,7 @@ function Calendar() {
     <Box
       sx={{
         minHeight: "100vh",
-        background: "#f8fafc",
+        background: theme.palette.background.default,
         pt: 2,
         pb: 4,
       }}
@@ -291,20 +294,20 @@ function Calendar() {
                 whileHover={{ scale: 1.05 }}
                 style={{ display: "inline-block", marginBottom: "16px" }}
               >
-                <FaCalendarAlt style={{ fontSize: "3rem", color: "#667eea" }} />
+                <FaCalendarAlt style={{ fontSize: "3rem", color: theme.palette.primary.main }} />
               </motion.div>
               <Typography 
                 variant="h2" 
                 gutterBottom 
                 sx={{ 
                   fontWeight: 700,
-                  color: "#1a202c",
+                  color: theme.palette.text.primary,
                   mb: 1
                 }}
               >
                 Calendar
               </Typography>
-              <Typography variant="h6" sx={{ color: "#4a5568", mb: 2 }}>
+              <Typography variant="h6" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
                 Manage your schedule and events
               </Typography>
             </Box>

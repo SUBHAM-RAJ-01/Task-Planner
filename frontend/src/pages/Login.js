@@ -28,6 +28,7 @@ import {
 import { MdEmail } from "react-icons/md";
 import styles from "./Login.module.css";
 import Loader from "../components/Loader";
+import { useTheme } from '@mui/material/styles';
 
 function Login() {
   const { user, loading: authLoading, signInWithGoogle, signIn, resetPassword } = useAuth();
@@ -39,6 +40,7 @@ function Login() {
   const [resetMode, setResetMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const theme = useTheme();
 
   // Redirect authenticated users to dashboard
   React.useEffect(() => {
@@ -117,7 +119,7 @@ function Login() {
     <Box
       sx={{
         minHeight: "100vh",
-        background: "#f8fafc",
+        background: theme.palette.background.default,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -142,7 +144,7 @@ function Login() {
           left: "10%",
           width: "200px",
           height: "200px",
-          background: "rgba(102, 126, 234, 0.1)",
+          background: theme.palette.primary.main + '22',
           borderRadius: "50%",
           filter: "blur(40px)",
         }}
@@ -163,7 +165,7 @@ function Login() {
           right: "10%",
           width: "300px",
           height: "300px",
-          background: "rgba(240, 147, 251, 0.1)",
+          background: theme.palette.secondary.main + '22',
           borderRadius: "50%",
           filter: "blur(60px)",
         }}
@@ -180,7 +182,7 @@ function Login() {
             sx={{
               p: 4,
               borderRadius: 4,
-              background: "#ffffff",
+              background: theme.palette.background.paper,
               border: "1px solid rgba(0, 0, 0, 0.05)",
               boxShadow: "0 25px 50px rgba(0, 0, 0, 0.15)",
             }}
@@ -191,14 +193,14 @@ function Login() {
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   style={{ display: "inline-block", marginBottom: "16px" }}
                 >
-                  <FaRocket style={{ fontSize: "3rem", color: "#667eea" }} />
+                  <FaRocket style={{ fontSize: "3rem", color: theme.palette.primary.main }} />
                 </motion.div>
                 <Typography 
                   variant="h3" 
                   gutterBottom 
                   sx={{ 
                     fontWeight: 700,
-                    color: "#1a202c",
+                    color: theme.palette.text.primary,
                     mb: 1
                   }}
                 >

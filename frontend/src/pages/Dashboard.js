@@ -49,6 +49,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import { useTheme } from '@mui/material/styles';
 
 function getStartOfWeek(date) {
   const d = new Date(date);
@@ -135,6 +136,7 @@ function Dashboard() {
   const [aiSuggestOpen, setAiSuggestOpen] = React.useState(false);
   const [aiSuggestedTask, setAiSuggestedTask] = React.useState(null);
   const [aiSuggestLoading, setAiSuggestLoading] = React.useState(false);
+  const theme = useTheme();
 
   // Load dashboard data from localStorage on component mount
   useEffect(() => {
@@ -226,7 +228,7 @@ function Dashboard() {
     <Box
       sx={{
         minHeight: "100vh",
-        background: "#f8fafc",
+        background: theme.palette.background.default,
         pt: 2,
         pb: 4,
       }}
@@ -243,20 +245,20 @@ function Dashboard() {
                 whileHover={{ scale: 1.05 }}
                 style={{ display: "inline-block", marginBottom: "16px" }}
               >
-                <FaRocket style={{ fontSize: "3rem", color: "#667eea" }} />
+                <FaRocket style={{ fontSize: "3rem", color: theme.palette.primary.main }} />
               </motion.div>
               <Typography 
                 variant="h2" 
                 gutterBottom 
                 sx={{ 
                   fontWeight: 700,
-                  color: "#1a202c",
+                  color: theme.palette.text.primary,
                   mb: 1
                 }}
               >
                 Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'User'}! 🚀
               </Typography>
-              <Typography variant="h6" sx={{ color: "#4a5568", mb: 2 }}>
+              <Typography variant="h6" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
                 Let's boost your productivity today
               </Typography>
             </Box>
@@ -267,7 +269,7 @@ function Dashboard() {
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
-                  <FaTasks style={{ color: "#667eea" }} />
+                  <FaTasks style={{ color: theme.palette.primary.main }} />
                   Task Management
                 </Typography>
                 <TaskList onTasksChange={handleTasksChange} />
@@ -290,7 +292,7 @@ function Dashboard() {
                 <Card sx={{ mb: 3 }}>
                   <CardContent>
                     <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
-                      <FaChartLine style={{ color: "#667eea" }} />
+                      <FaChartLine style={{ color: theme.palette.primary.main }} />
                       Productivity Analytics
                     </Typography>
                     <AnalyticsChart analytics={{
@@ -326,7 +328,7 @@ function Dashboard() {
                 }}>
                   <CardContent>
                     <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
-                      <FaChartLine style={{ color: "#667eea" }} />
+                      <FaChartLine style={{ color: theme.palette.primary.main }} />
                       Weekly Progress
                     </Typography>
                     
@@ -339,10 +341,10 @@ function Dashboard() {
                         <Line 
                           type="monotone" 
                           dataKey="productivity" 
-                          stroke="#667eea" 
+                          stroke={theme.palette.primary.main} 
                           strokeWidth={3}
-                          dot={{ fill: "#667eea", strokeWidth: 2, r: 6 }}
-                          activeDot={{ r: 8, stroke: "#667eea", strokeWidth: 2, fill: "#fff" }}
+                          dot={{ fill: theme.palette.primary.main, strokeWidth: 2, r: 6 }}
+                          activeDot={{ r: 8, stroke: theme.palette.primary.main, strokeWidth: 2, fill: "#fff" }}
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -362,14 +364,14 @@ function Dashboard() {
                 }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
-                      <FaTrophy style={{ color: "#667eea" }} />
+                      <FaTrophy style={{ color: theme.palette.primary.main }} />
                       Quick Stats
                     </Typography>
                     
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <FaTasks style={{ color: "#667eea" }} />
+                          <FaTasks style={{ color: theme.palette.primary.main }} />
                           <Typography variant="body2">Total Tasks</Typography>
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -396,7 +398,7 @@ function Dashboard() {
                       </Box>
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <FaCalendarAlt style={{ color: "#667eea" }} />
+                          <FaCalendarAlt style={{ color: theme.palette.primary.main }} />
                           <Typography variant="body2">Events</Typography>
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -416,7 +418,7 @@ function Dashboard() {
                 }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
-                      <FaFire style={{ color: "#667eea" }} />
+                      <FaFire style={{ color: theme.palette.primary.main }} />
                       Recent Achievements
                     </Typography>
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -449,7 +451,7 @@ function Dashboard() {
                 }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
-                      <FaRocket style={{ color: "#667eea" }} />
+                      <FaRocket style={{ color: theme.palette.primary.main }} />
                       Quick Actions
                     </Typography>
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -529,7 +531,7 @@ function Dashboard() {
       {/* AI Suggest Next Task Dialog */}
       <Dialog open={aiSuggestOpen} onClose={() => setAiSuggestOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <FaLightbulb style={{ color: '#667eea' }} />
+          <FaLightbulb style={{ color: theme.palette.primary.main }} />
           AI Suggestion
         </DialogTitle>
         <DialogContent>
