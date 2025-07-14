@@ -17,6 +17,7 @@ import { MdDashboard } from "react-icons/md";
 import styles from "./Navbar.module.css";
 import MenuIcon from '@mui/icons-material/Menu';
 import Drawer from '@mui/material/Drawer';
+import { loadFromStorage, storageKeys } from "../utils/storage";
 
 function Navbar() {
   const { user, signOut } = useAuth();
@@ -24,6 +25,13 @@ function Navbar() {
   const location = useLocation();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [mobileOpen, setMobileOpen] = React.useState(false);
+
+  // Load profile photoURL from localStorage
+  let photoURL = null;
+  if (user?.uid) {
+    const profile = loadFromStorage(storageKeys.PROFILE, user.uid, null, 'profile');
+    photoURL = profile?.photoURL || profile?.avatar || null;
+  }
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -163,6 +171,7 @@ function Navbar() {
                   }}
                 >
                   <Avatar
+                    src={photoURL}
                     sx={{
                       width: 40,
                       height: 40,

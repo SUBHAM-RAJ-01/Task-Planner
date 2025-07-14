@@ -292,10 +292,8 @@ export const AuthProvider = ({ children }) => {
 
     try {
       await firebaseSignOut(auth);
-      // Clear user data from localStorage
-      if (user?.uid) {
-        clearUserData(user.uid);
-      }
+      // Only remove session token, do not clear user profile data
+      localStorage.removeItem("token");
       toast.success("Signed out successfully! 👋");
     } catch (error) {
       console.error("Sign-out error:", error);

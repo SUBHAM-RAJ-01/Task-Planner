@@ -45,6 +45,8 @@ import { MdDashboard, MdSecurity, MdNotifications } from "react-icons/md";
 import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import styles from "./Profile.module.css";
 import { useAuth } from "../firebase/useAuth";
+import PhotoCamera from '@mui/icons-material/PhotoCamera';
+import EditIcon from '@mui/icons-material/Edit';
 
 function Profile() {
   const { user, updateEmail } = useAuth();
@@ -85,6 +87,11 @@ function Profile() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
 
+  const [editingField, setEditingField] = useState(null); // 'displayName' | 'bio' | null
+  const displayNameRef = React.useRef();
+  const bioRef = React.useRef();
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
   // Load profile data from localStorage on component mount
   useEffect(() => {
     if (!user?.uid) return;
@@ -96,6 +103,7 @@ function Profile() {
       setDisplayName(savedProfile.displayName || user?.displayName || user?.email?.split('@')[0] || "User");
       setBio(savedProfile.bio || 'Productivity enthusiast and goal achiever.');
     }
+    setProfileLoaded(true);
 
     // Load saved notification settings
     const savedNotificationSettings = loadFromStorage(storageKeys.PROFILE_NOTIFICATIONS, user.uid);
@@ -118,17 +126,18 @@ function Profile() {
     }
   }, [user?.uid]);
 
-  // Save profile data to localStorage whenever profile changes
+  // Save profile data to localStorage whenever profile changes, but only after initial load
   useEffect(() => {
-    if (user?.uid) {
+    if (user?.uid && profileLoaded) {
       const profileData = {
         ...profile,
         displayName: displayName,
-        bio: bio
+        bio: bio,
+        photoURL: profile.photoURL || '',
       };
       saveToStorage(storageKeys.PROFILE, profileData, user.uid);
     }
-  }, [profile, displayName, bio, user?.uid]);
+  }, [profile, displayName, bio, user?.uid, profileLoaded]);
 
   // Save notification settings to localStorage whenever settings change
   useEffect(() => {
@@ -229,6 +238,42 @@ function Profile() {
     setEmailLoading(false);
   };
 
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setProfile(prev => ({ ...prev, photoURL: ev.target.result }));
+        // Save to localStorage for persistence
+        if (user?.uid) {
+          const savedProfile = loadFromStorage(storageKeys.PROFILE, user.uid, null, 'profile') || {};
+          saveToStorage(storageKeys.PROFILE, { ...savedProfile, photoURL: ev.target.result }, user.uid);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Inline save handler
+  const handleInlineSave = (field, value) => {
+    if (field === 'displayName') setDisplayName(value);
+    if (field === 'bio') setBio(value);
+    setProfile(prev => ({ ...prev, [field]: value }));
+    setEditingField(null);
+    // Save to localStorage
+    if (user?.uid) {
+      const savedProfile = loadFromStorage(storageKeys.PROFILE, user.uid, null, 'profile') || {};
+      saveToStorage(storageKeys.PROFILE, { ...savedProfile, [field]: value }, user.uid);
+    }
+  };
+
+  // Handle Enter/blur
+  const handleInlineKey = (e, field) => {
+    if (e.key === 'Enter') {
+      handleInlineSave(field, e.target.value);
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { 
@@ -244,6 +289,8 @@ function Profile() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
   };
+
+  const PROFILE_BANNER_URL = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80"; // Example Unsplash image
 
   if (!profile) {
     return (
@@ -352,24 +399,79 @@ function Profile() {
                         <Box sx={{ textAlign: "center", mb: 3 }}>
                           <motion.div
                             whileHover={{ scale: 1.05 }}
-                            style={{ display: "inline-block" }}
+                            style={{ display: "inline-block", marginBottom: "16px", width: "100%" }}
                           >
-                            <Avatar
-                              src={profile.photoURL}
-                              sx={{
-                                width: 120,
-                                height: 120,
-                                margin: "0 auto",
-                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                fontSize: "3rem",
-                                fontWeight: 600,
-                              }}
-                            >
-                                                          {displayName?.charAt(0).toUpperCase() || "U"}
-                          </Avatar>
-                        </motion.div>
-                        <Typography variant="h6" sx={{ mt: 2, fontWeight: 600 }}>
-                          {displayName}
+                            <Box sx={{ position: "relative", mb: 3 }}>
+                              <Box
+                                sx={{
+                                  width: "100%",
+                                  height: { xs: 120, md: 180 },
+                                  background: `url(${PROFILE_BANNER_URL}) center/cover no-repeat`,
+                                  borderTopLeftRadius: 16,
+                                  borderTopRightRadius: 16,
+                                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                                }}
+                              />
+                              <Box sx={{ position: "absolute", left: "50%", bottom: -60, transform: "translateX(-50%)", zIndex: 2 }}>
+                                <Avatar
+                                  src={profile.photoURL}
+                                  sx={{
+                                    width: 120,
+                                    height: 120,
+                                    border: "4px solid #fff",
+                                    boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
+                                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                    fontSize: "3rem",
+                                    fontWeight: 600,
+                                    zIndex: 2,
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  {displayName?.charAt(0).toUpperCase() || "U"}
+                                </Avatar>
+                                <IconButton
+                                  component="label"
+                                  sx={{
+                                    position: "absolute",
+                                    bottom: 8,
+                                    right: 8,
+                                    background: "rgba(255,255,255,0.85)",
+                                    boxShadow: 1,
+                                    zIndex: 3,
+                                    '&:hover': { background: "#f0f0f0" }
+                                  }}
+                                  size="small"
+                                >
+                                  <PhotoCamera fontSize="small" />
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    hidden
+                                    onChange={handleAvatarChange}
+                                  />
+                                </IconButton>
+                              </Box>
+                            </Box>
+                          </motion.div>
+                          <Typography variant="h6" sx={{ mt: 2, fontWeight: 600 }}>
+                            {editingField === 'displayName' ? (
+                              <TextField
+                                inputRef={displayNameRef}
+                                value={displayName}
+                                onChange={e => setDisplayName(e.target.value)}
+                                onBlur={e => handleInlineSave('displayName', e.target.value)}
+                                onKeyDown={e => handleInlineKey(e, 'displayName')}
+                                size="small"
+                                autoFocus
+                                sx={{ minWidth: 120 }}
+                                variant="standard"
+                              />
+                            ) : (
+                              <>
+                                {displayName}
+                                <EditIcon fontSize="small" sx={{ ml: 1, opacity: 0.6 }} />
+                              </>
+                            )}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Member for {getDaysSinceCreation()} days

@@ -84,7 +84,8 @@ export const migrateProfileData = (profile) => {
     // Add any new fields with defaults
     displayName: profile.displayName || '',
     avatar: profile.avatar || '',
-    preferences: profile.preferences || {}
+    preferences: profile.preferences || {},
+    photoURL: profile.photoURL || '',
   };
 };
 
