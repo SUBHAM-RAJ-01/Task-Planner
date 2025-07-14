@@ -47,6 +47,8 @@ import styles from "./Profile.module.css";
 import { useAuth } from "../firebase/useAuth";
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import EditIcon from '@mui/icons-material/Edit';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getApp } from 'firebase/app';
 
 function Profile() {
   const { user, updateEmail } = useAuth();
@@ -124,6 +126,25 @@ function Profile() {
         streak: 7
       });
     }
+  }, [user?.uid]);
+
+  // On mount, fetch profile from backend for cross-device sync
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.uid) return;
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.user) {
+        setProfile(data.user);
+        setDisplayName(data.user.displayName || user.displayName || user.email?.split('@')[0] || 'User');
+        setBio(data.user.bio || 'Productivity enthusiast and goal achiever.');
+      }
+      setProfileLoaded(true);
+    };
+    fetchProfile();
   }, [user?.uid]);
 
   // Save profile data to localStorage whenever profile changes, but only after initial load
@@ -238,19 +259,28 @@ function Profile() {
     setEmailLoading(false);
   };
 
-  const handleAvatarChange = (e) => {
+  // Replace handleAvatarChange with Firebase Storage upload and backend sync
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setProfile(prev => ({ ...prev, photoURL: ev.target.result }));
-        // Save to localStorage for persistence
-        if (user?.uid) {
-          const savedProfile = loadFromStorage(storageKeys.PROFILE, user.uid, null, 'profile') || {};
-          saveToStorage(storageKeys.PROFILE, { ...savedProfile, photoURL: ev.target.result }, user.uid);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (file && user?.uid) {
+      const storage = getStorage(getApp());
+      const storageRef = ref(storage, `avatars/${user.uid}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Update Firestore via backend
+      const token = localStorage.getItem('token');
+      await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ photoURL: downloadURL })
+      });
+
+      // Update local state/UI
+      setProfile(prev => ({ ...prev, photoURL: downloadURL }));
     }
   };
 

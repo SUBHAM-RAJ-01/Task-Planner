@@ -611,8 +611,6 @@ function Calendar() {
                           setTitle("New Event");
                           setStartDate(tomorrow);
                           setStartTime(new Date(tomorrow).setHours(9, 0, 0, 0)); // Set to 9 AM
-                          setEndDate(tomorrow);
-                          setEndTime(new Date(tomorrow).setHours(10, 0, 0, 0)); // Set to 10 AM
                         }}
                         sx={{ justifyContent: "flex-start" }}
                       >
