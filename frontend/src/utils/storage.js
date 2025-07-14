@@ -5,8 +5,6 @@ import { applyMigration } from './dataMigration';
 export const storageKeys = {
   TASKS: 'tasks',
   EVENTS: 'events',
-  NOTIFICATIONS: 'notifications',
-  NOTIFICATION_SETTINGS: 'notification_settings',
   PROFILE: 'profile',
   PROFILE_NOTIFICATIONS: 'profile_notifications',
   PROFILE_STATS: 'profile_stats',

@@ -18,6 +18,18 @@ link.rel = 'stylesheet';
 link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap';
 document.head.appendChild(link);
 
+// Explicitly register the FCM service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js')
+      .then(function(registration) {
+        console.log('FCM Service Worker registration successful with scope: ', registration.scope);
+      }, function(err) {
+        console.log('FCM Service Worker registration failed: ', err);
+      });
+  });
+}
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>

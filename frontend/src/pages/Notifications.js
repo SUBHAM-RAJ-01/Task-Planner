@@ -39,6 +39,7 @@ import styles from "./Notifications.module.css";
 import { useAuth } from "../firebase/useAuth";
 import Loader from "../components/Loader";
 import { useFirestoreNotifications } from '../hooks/useFirestoreNotifications';
+import { formatDistanceToNow } from 'date-fns';
 
 function Notifications() {
   const { user } = useAuth();
@@ -56,7 +57,25 @@ function Notifications() {
   const token = localStorage.getItem("token");
   const api = process.env.REACT_APP_BACKEND_URL;
 
-  // Remove all localStorage usage for notifications
+  // Restore FCM token retrieval on mount
+  useEffect(() => {
+    const fetchToken = async () => {
+      let token = getStoredFcmToken();
+      console.log('Stored FCM token:', token);
+      if (!token) {
+        try {
+          token = await requestFcmToken();
+          console.log('Requested FCM token:', token);
+        } catch (err) {
+          console.error('Error requesting FCM token:', err);
+        }
+      }
+      setFcmToken(token);
+    };
+    fetchToken();
+  }, []);
+
+  // Remove any code that saves or loads notifications or notification settings from localStorage, or uses sample notifications
 
   // Notification CRUD handlers
   const handleSendNotification = async () => {
@@ -66,20 +85,23 @@ function Notifications() {
     }
     setLoading(true);
     try {
-      // Send notification to backend (if needed)
+      // Send notification to backend (with correct payload)
+      const payload = {
+        title,
+        body: message,
+        token: fcmToken,
+        settings
+      };
+      console.log('Sending notification payload:', payload);
       const res = await fetch(`${api}/api/notifications/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          title, 
-          message, 
-          fcmToken,
-          settings 
-        })
+        body: JSON.stringify(payload)
       });
+      console.log('Notification API response:', res);
       if (res.ok) {
         toast.success("Notification sent successfully! 🎉");
         // Add to Firestore notifications
@@ -94,10 +116,12 @@ function Notifications() {
         setTitle("");
         setMessage("");
       } else {
-        throw new Error("Failed to send notification");
+        const errorText = await res.text();
+        console.error('Notification API error:', errorText);
+        throw new Error('Failed to send notification');
       }
     } catch (err) {
-      console.error("Error sending notification:", err);
+      console.error('Error sending notification:', err);
       toast.error("Failed to send notification");
     }
     setLoading(false);
@@ -275,7 +299,7 @@ function Notifications() {
                       <Button
                         variant="contained"
                         onClick={handleSendNotification}
-                        disabled={loading || !title.trim() || !message.trim()}
+                        disabled={loading || !title.trim() || !message.trim() || !fcmToken}
                         sx={{
                           background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                           color: "white",
@@ -292,11 +316,6 @@ function Notifications() {
                       </Button>
                     </Box>
 
-                    {fcmToken && (
-                      <Alert severity="success" sx={{ mt: 2 }}>
-                        Push notifications are enabled! Token: {fcmToken.substring(0, 20)}...
-                      </Alert>
-                    )}
                   </CardContent>
                 </Card>
 
@@ -356,7 +375,7 @@ function Notifications() {
                                     {notification.message}
                                   </Typography>
                                   <Typography variant="caption" color="text.secondary">
-                                    {formatTimeAgo(notification.timestamp)}
+                                    {formatDistanceToNow(notification.timestamp?.toDate ? notification.timestamp.toDate() : new Date(notification.timestamp), { addSuffix: true })}
                                   </Typography>
                                 </Box>
                               }
