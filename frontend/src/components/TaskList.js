@@ -48,6 +48,7 @@ import { MdPriorityHigh, MdLowPriority } from "react-icons/md";
 import { useAuth } from "../firebase/useAuth";
 import AIService from "../services/aiService";
 import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
+import Loader from "./Loader";
 
 const TaskList = ({ onTasksChange }) => {
   const { user } = useAuth();
@@ -330,6 +331,10 @@ const TaskList = ({ onTasksChange }) => {
     visible: { opacity: 1, y: 0 }
   };
 
+  if (loading) {
+    return <Loader />;
+  }
+
   return (
     <Box sx={{ p: 3 }}>
       <motion.div
@@ -394,6 +399,7 @@ const TaskList = ({ onTasksChange }) => {
                       disabled={loading || !newTask.trim()}
                       sx={{
                         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        color: "white",
                         minWidth: "120px"
                       }}
                     >

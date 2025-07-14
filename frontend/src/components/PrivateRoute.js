@@ -1,14 +1,17 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
+import { Box, Typography } from "@mui/material";
 import { useAuth } from "../firebase/useAuth";
+import Loader from "./Loader";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
   console.log("PrivateRoute - user:", user, "loading:", loading);
   
   if (loading) {
-    console.log("PrivateRoute - still loading");
-    return null;
+    return (
+      <Loader fullScreen />
+    );
   }
   
   if (!user) {

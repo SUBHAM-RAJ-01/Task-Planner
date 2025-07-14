@@ -8,7 +8,9 @@ import {
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  setPersistence,
+  browserLocalPersistence
 } from "firebase/auth";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { toast } from "react-toastify";
@@ -46,6 +48,16 @@ export const AuthProvider = ({ children }) => {
     
     try {
       const authInstance = getAuth(app);
+      
+      // Set persistence to LOCAL to maintain auth state across page refreshes
+      setPersistence(authInstance, browserLocalPersistence)
+        .then(() => {
+          console.log("Auth persistence set to LOCAL");
+        })
+        .catch((error) => {
+          console.warn("Failed to set auth persistence:", error);
+        });
+      
       setAuth(authInstance);
       
       // Initialize messaging only if we have a valid app

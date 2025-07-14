@@ -37,6 +37,7 @@ import { requestFcmToken, getStoredFcmToken } from "../firebase/fcm";
 import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import styles from "./Notifications.module.css";
 import { useAuth } from "../firebase/useAuth";
+import Loader from "../components/Loader";
 
 function Notifications() {
   const { user } = useAuth();
@@ -216,6 +217,10 @@ function Notifications() {
     visible: { opacity: 1, y: 0 }
   };
 
+  if (loading) {
+    return <Loader fullScreen />;
+  }
+
   return (
     <Box
       sx={{
@@ -303,6 +308,7 @@ function Notifications() {
                         disabled={loading || !title.trim() || !message.trim()}
                         sx={{
                           background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          color: "white",
                         }}
                       >
                         {loading ? "Sending..." : "Send Notification"}

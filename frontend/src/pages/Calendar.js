@@ -41,6 +41,7 @@ import styles from "./Calendar.module.css";
 import EventList from "../components/EventList";
 import { useAuth } from "../firebase/useAuth";
 import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
+import Loader from "../components/Loader";
 
 function Calendar() {
   const { user } = useAuth();
@@ -224,6 +225,10 @@ function Calendar() {
     visible: { opacity: 1, y: 0 }
   };
 
+  if (loading) {
+    return <Loader fullScreen />;
+  }
+
   return (
     <Box
       sx={{
@@ -344,6 +349,7 @@ function Calendar() {
                       disabled={loading || !title.trim() || !start.trim()}
                       sx={{
                         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        color: "white",
                         mt: 2
                       }}
                     >

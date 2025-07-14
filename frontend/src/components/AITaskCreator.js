@@ -165,6 +165,7 @@ const AITaskCreator = ({ onTaskCreated }) => {
               startIcon={loading ? <CircularProgress size={20} /> : <FaRobot />}
               sx={{
                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                color: "white",
               }}
             >
               {loading ? "Creating Task..." : "Create Smart Task"}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Container, 
   Typography, 
@@ -27,9 +27,10 @@ import {
 } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
 import styles from "./Login.module.css";
+import Loader from "../components/Loader";
 
 function Login() {
-  const { signInWithGoogle, signIn, resetPassword } = useAuth();
+  const { user, loading: authLoading, signInWithGoogle, signIn, resetPassword } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,6 +39,13 @@ function Login() {
   const [resetMode, setResetMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Redirect authenticated users to dashboard
+  React.useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/");
+    }
+  }, [user, authLoading, navigate]);
 
   const handleGoogle = async () => {
     setError("");
@@ -83,6 +91,10 @@ function Login() {
     }
     setLoading(false);
   };
+
+  if (loading || authLoading) {
+    return <Loader fullScreen />;
+  }
 
   const containerVariants = {
     hidden: { opacity: 0, y: 50 },
