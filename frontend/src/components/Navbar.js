@@ -15,12 +15,15 @@ import {
 } from "react-icons/fa";
 import { MdDashboard } from "react-icons/md";
 import styles from "./Navbar.module.css";
+import MenuIcon from '@mui/icons-material/Menu';
+import Drawer from '@mui/material/Drawer';
 
 function Navbar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -38,6 +41,10 @@ function Navbar() {
       console.error("Error signing out:", error);
     }
     handleClose();
+  };
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
   };
 
   const navItems = [
@@ -88,7 +95,8 @@ function Navbar() {
             </Box>
           </motion.div>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {/* Nav buttons for medium+ screens */}
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: "center", gap: 1, flex: 1, justifyContent: 'center' }}>
             {navItems.map((item) => (
               <motion.div
                 key={item.path}
@@ -125,65 +133,128 @@ function Navbar() {
             ))}
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-            >
+          {/* Hamburger for small screens - move to right, just left of avatar */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', zIndex: 1201, mr: 1 }}>
               <IconButton
-                onClick={handleMenu}
-                sx={{
-                  background: "rgba(102, 126, 234, 0.1)",
-                  border: "2px solid rgba(102, 126, 234, 0.2)",
-                  "&:hover": {
-                    background: "rgba(102, 126, 234, 0.2)",
+                color="inherit"
+                aria-label="open drawer"
+                edge="end"
+                onClick={handleDrawerToggle}
+                sx={{ border: 'none', background: 'none', p: 0 }}
+              >
+                <MenuIcon sx={{ color: '#667eea' }} />
+              </IconButton>
+            </Box>
+            {/* User Avatar/Menu (always visible) */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, ml: { xs: 1, md: 0 } }}>
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <IconButton
+                  onClick={handleMenu}
+                  sx={{
+                    background: "rgba(102, 126, 234, 0.1)",
+                    border: "2px solid rgba(102, 126, 234, 0.2)",
+                    "&:hover": {
+                      background: "rgba(102, 126, 234, 0.2)",
+                    },
+                  }}
+                >
+                  <Avatar
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {user.email?.charAt(0).toUpperCase() || "U"}
+                  </Avatar>
+                </IconButton>
+              </motion.div>
+
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+                PaperProps={{
+                  sx: {
+                    background: "#ffffff",
+                    backdropFilter: "blur(20px)",
+                    borderRadius: "16px",
+                    border: "1px solid rgba(0, 0, 0, 0.1)",
+                    boxShadow: "0 20px 60px rgba(0, 0, 0, 0.1)",
+                    mt: 1,
                   },
                 }}
               >
-                <Avatar
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    fontWeight: 600,
-                  }}
-                >
-                  {user.email?.charAt(0).toUpperCase() || "U"}
-                </Avatar>
-              </IconButton>
-            </motion.div>
-
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-              PaperProps={{
-                sx: {
-                  background: "#ffffff",
-                  backdropFilter: "blur(20px)",
-                  borderRadius: "16px",
-                  border: "1px solid rgba(0, 0, 0, 0.1)",
-                  boxShadow: "0 20px 60px rgba(0, 0, 0, 0.1)",
-                  mt: 1,
-                },
-              }}
-            >
-              <MenuItem onClick={() => { navigate("/profile"); handleClose(); }}>
-                <FaUser style={{ marginRight: "8px" }} />
-                Profile
-              </MenuItem>
-              <MenuItem onClick={() => { navigate("/settings"); handleClose(); }}>
-                <FaCog style={{ marginRight: "8px" }} />
-                Settings
-              </MenuItem>
-              <MenuItem onClick={handleSignOut} sx={{ color: "error.main" }}>
-                <FaSignOutAlt style={{ marginRight: "8px" }} />
-                Sign Out
-              </MenuItem>
-            </Menu>
+                <MenuItem onClick={() => { navigate("/profile"); handleClose(); }}>
+                  <FaUser style={{ marginRight: "8px" }} />
+                  Profile
+                </MenuItem>
+                <MenuItem onClick={() => { navigate("/settings"); handleClose(); }}>
+                  <FaCog style={{ marginRight: "8px" }} />
+                  Settings
+                </MenuItem>
+                <MenuItem onClick={handleSignOut} sx={{ color: "error.main" }}>
+                  <FaSignOutAlt style={{ marginRight: "8px" }} />
+                  Sign Out
+                </MenuItem>
+              </Menu>
+            </Box>
           </Box>
         </Toolbar>
       </AppBar>
+      {/* Drawer for mobile nav */}
+      <Drawer
+        anchor="left"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 240 },
+        }}
+      >
+        <Box
+          sx={{ width: 240, p: 2 }}
+          role="presentation"
+          onClick={handleDrawerToggle}
+          onKeyDown={handleDrawerToggle}
+        >
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: '#667eea' }}>
+            Menu
+          </Typography>
+          {navItems.map((item) => (
+            <Button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              sx={{
+                color: location.pathname === item.path ? "#667eea" : "#4a5568",
+                justifyContent: 'flex-start',
+                width: '100%',
+                mb: 1,
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: '1rem',
+                borderRadius: 2,
+                background: location.pathname === item.path 
+                  ? "rgba(102, 126, 234, 0.1)" 
+                  : "transparent",
+                "&:hover": {
+                  background: "rgba(102, 126, 234, 0.1)",
+                },
+                gap: 1,
+              }}
+              startIcon={item.icon}
+            >
+              {item.label}
+            </Button>
+          ))}
+        </Box>
+      </Drawer>
     </motion.div>
   );
 }
