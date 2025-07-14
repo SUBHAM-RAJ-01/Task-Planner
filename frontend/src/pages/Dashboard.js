@@ -33,7 +33,8 @@ import {
   FaRegStar,
   FaPlus,
   FaEdit,
-  FaTrash
+  FaTrash,
+  FaLightbulb
 } from "react-icons/fa";
 import { MdEvent, MdAccessTime, MdLocationOn } from "react-icons/md";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
@@ -42,6 +43,12 @@ import { saveToStorage, loadFromStorage, storageKeys } from "../utils/storage";
 import TaskList from "../components/TaskList";
 import AITaskCreator from "../components/AITaskCreator";
 import AnalyticsChart from "../components/AnalyticsChart";
+import { useNavigate } from "react-router-dom";
+import AIService from "../services/aiService";
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 function getStartOfWeek(date) {
   const d = new Date(date);
@@ -122,6 +129,12 @@ function Dashboard() {
     productivity: 0
   });
   const [tasks, setTasks] = useState([]);
+  const navigate = useNavigate();
+  // Ref for Add Task input
+  const addTaskInputRef = React.useRef();
+  const [aiSuggestOpen, setAiSuggestOpen] = React.useState(false);
+  const [aiSuggestedTask, setAiSuggestedTask] = React.useState(null);
+  const [aiSuggestLoading, setAiSuggestLoading] = React.useState(false);
 
   // Load dashboard data from localStorage on component mount
   useEffect(() => {
@@ -439,13 +452,27 @@ function Dashboard() {
                       <FaRocket style={{ color: "#667eea" }} />
                       Quick Actions
                     </Typography>
-                    
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       <Button
                         variant="outlined"
                         fullWidth
                         startIcon={<FaPlus />}
                         sx={{ justifyContent: "flex-start" }}
+                        onClick={() => {
+                          // If on dashboard, scroll to add task input
+                          if (window.location.pathname === "/") {
+                            const el = document.getElementById("add-task-input");
+                            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                            setTimeout(() => { el && el.focus(); }, 500);
+                          } else {
+                            navigate("/");
+                            setTimeout(() => {
+                              const el = document.getElementById("add-task-input");
+                              if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                              setTimeout(() => { el && el.focus(); }, 500);
+                            }, 500);
+                          }
+                        }}
                       >
                         Add New Task
                       </Button>
@@ -454,6 +481,7 @@ function Dashboard() {
                         fullWidth
                         startIcon={<FaCalendarAlt />}
                         sx={{ justifyContent: "flex-start" }}
+                        onClick={() => navigate("/calendar")}
                       >
                         Schedule Event
                       </Button>
@@ -462,8 +490,33 @@ function Dashboard() {
                         fullWidth
                         startIcon={<FaBell />}
                         sx={{ justifyContent: "flex-start" }}
+                        onClick={() => navigate("/notifications")}
                       >
                         Set Reminder
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        startIcon={<FaLightbulb />}
+                        sx={{ justifyContent: "flex-start" }}
+                        onClick={async () => {
+                          setAiSuggestLoading(true);
+                          try {
+                            const prioritized = await AIService.prioritizeTasks(tasks.filter(t => !t.completed));
+                            if (prioritized && prioritized.length > 0) {
+                              setAiSuggestedTask(prioritized[0]);
+                              setAiSuggestOpen(true);
+                            } else {
+                              toast.info("No pending tasks to suggest.");
+                            }
+                          } catch (err) {
+                            toast.error("AI suggestion failed.");
+                          }
+                          setAiSuggestLoading(false);
+                        }}
+                        disabled={aiSuggestLoading}
+                      >
+                        {aiSuggestLoading ? "Suggesting..." : "AI Suggest Next Task"}
                       </Button>
                     </Box>
                   </CardContent>
@@ -473,6 +526,37 @@ function Dashboard() {
           </Grid>
         </motion.div>
       </Container>
+      {/* AI Suggest Next Task Dialog */}
+      <Dialog open={aiSuggestOpen} onClose={() => setAiSuggestOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <FaLightbulb style={{ color: '#667eea' }} />
+          AI Suggestion
+        </DialogTitle>
+        <DialogContent>
+          {aiSuggestedTask ? (
+            <Box>
+              <Typography variant="h6" sx={{ mb: 1 }}>{aiSuggestedTask.title}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Priority: <strong>{aiSuggestedTask.aiPriority || aiSuggestedTask.priority}</strong>
+                {aiSuggestedTask.confidence && (
+                  <> &nbsp;|&nbsp; Confidence: <strong>{(aiSuggestedTask.confidence * 100).toFixed(0)}%</strong></>
+                )}
+              </Typography>
+              {aiSuggestedTask.description && (
+                <Typography variant="body2" sx={{ mb: 1 }}>{aiSuggestedTask.description}</Typography>
+              )}
+              {aiSuggestedTask.estimatedTime && (
+                <Typography variant="body2">Estimated Time: {aiSuggestedTask.estimatedTime} min</Typography>
+              )}
+            </Box>
+          ) : (
+            <Typography>No suggestion available.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAiSuggestOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

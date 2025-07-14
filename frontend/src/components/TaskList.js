@@ -397,6 +397,7 @@ const TaskList = ({ onTasksChange }) => {
                     }
                   }}>
                     <TextField
+                      id="add-task-input"
                       label="Task Title"
                       value={newTask}
                       onChange={(e) => setNewTask(e.target.value)}
